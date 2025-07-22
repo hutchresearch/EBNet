@@ -10,6 +10,7 @@ import skeletonkey as sk
 from collections import OrderedDict
 from dataset import prebatched_collate
 from runner import Runner
+from denorm import denormalize_labels, denormalize_std
 
 def franken_load(load_path: str, chunks: int) -> OrderedDict:
     """
@@ -90,6 +91,9 @@ def main(args) -> None:
         verbose=args.verbose,
     ).run("Evaluating Model")
 
+    std = denormalize_std(std, pred)
+    pred = denormalize_labels(pred)
+    
     print_results_as_csv(pred, std, args.targets)
 
 if __name__ == "__main__":
