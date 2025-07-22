@@ -1,0 +1,173 @@
+?verbose: False
+
+model: "ebnet+" # ebnet, ebnet+
+
+
+targets: ["teff1", "teff2", "teff_ratio", "q", "T0cos", "T0sin", "radius1", 
+    "radius2", "mass1", "mass2", "sma", "rsma", "incl", "vgamma", "ecc",
+    "eccsin", "ecccos", "k1", "k2", "rsma1", "rsma2"]
+
+dataset:
+  _target_: dataset.Dataset
+  data_dir_path: /research/hutchinson/data/ml_astro_binaries24/real_fits/ # replace with path to fits files
+
+eb_model_plus:
+  _target_: model.EBModelPlus
+  flux_in_channels: 50
+  rv_in_channels: 2
+  output_dim: 42
+  kernel_size: 2
+  flux_backbone_dim: 32
+  num_flux_backbone_conv_layers: 5
+  flux_conv_block_step: 1
+  rv_backbone_dim: 64
+  num_rv_backbone_conv_layers: 5
+  rv_conv_block_step: 1
+  meta_backbone_dim: 128
+  num_meta_backbone_conv_layers: 2
+  meta_conv_block_step: 2
+  num_final_backbone_conv_layers: 4
+  final_conv_block_step: 3
+  num_linear_layers: 2
+  linear_layer_dim: 2048
+  drop_p: 0.0
+
+eb_model:
+  _target_: model.LoadedModelWrapper
+
+lcflux:
+  - Kepler_mean
+  - TESS_T
+  - Johnson_U
+  - Johnson_B
+  - Johnson_V
+  - Johnson_R
+  - Johnson_I
+  - Johnson_J
+  - Johnson_H
+  - Johnson_K
+  - Cousins_R
+  - Cousins_I
+  - SDSS_u
+  - SDSS_g
+  - SDSS_r
+  - SDSS_i
+  - SDSS_z
+  - SDSS_uprime
+  - SDSS_gprime
+  - SDSS_rprime
+  - SDSS_iprime
+  - SDSS_zprime
+  - Gaia_BP
+  - Gaia_G
+  - Gaia_RP
+  - Gaia_RVS
+  - PanStarrs_g
+  - PanStarrs_r
+  - PanStarrs_w
+  - PanStarrs_open
+  - PanStarrs_i
+  - PanStarrs_z
+  - PanStarrs_y
+  - Stromgren_u
+  - Stromgren_v
+  - Stromgren_b
+  - Stromgren_y
+  - LSST_u
+  - LSST_g
+  - LSST_r
+  - LSST_i
+  - LSST_z
+  - LSST_y3
+  - SWASP_default
+  - ZTF_g
+  - ZTF_r
+  - ZTF_i
+  - Tycho_B
+  - Tycho_V
+  - Hipparcos_Hp
+
+lwa:
+  - 5978.14
+  - 7452.64
+  - 3551.05
+  - 4369.53
+  - 5467.57
+  - 6695.83
+  - 8568.89
+  - 12350.0
+  - 16620.0
+  - 21590.0
+  - 6357.35
+  - 7828.65
+  - 3608.04
+  - 4671.78
+  - 6141.12
+  - 7457.89
+  - 8922.78
+  - 3542.1
+  - 4723.59
+  - 6201.71
+  - 7672.59
+  - 10500.61
+  - 5035.75
+  - 5822.39
+  - 7619.96
+  - 8578.16
+  - 4810.16
+  - 6155.47
+  - 5980.7
+  - 6431.87
+  - 7503.03
+  - 8668.36
+  - 9613.6
+  - 3447.09
+  - 4110.6
+  - 4663.33
+  - 5472.44
+  - 3751.2
+  - 4740.66
+  - 6172.34
+  - 7500.97
+  - 8678.9
+  - 9711.82
+  - 5451.75
+  - 4746.48
+  - 6366.38
+  - 7829.03
+  - 4280.0
+  - 5340.0
+  - 4901.7
+
+colflux:
+  - GALEX.FUV
+  - GALEX.NUV
+  - Johnson.U
+  - SDSS.u
+  - Cousins.U
+  - Cousins.B
+  - Johnson.B
+  - SDSS.g
+  - PAN-STARRS.PS1.g
+  - GAIA.GAIA3.Gbp
+  - Cousins.V
+  - Johnson.V
+  - SDSS.r
+  - PAN-STARRS.PS1.r
+  - Cousins.R
+  - GAIA.GAIA3.G
+  - Johnson.R
+  - SDSS.i
+  - PAN-STARRS.PS1.i
+  - Cousins.I
+  - GAIA.GAIA3.Grp
+  - PAN-STARRS.PS1.z
+  - Johnson.I
+  - SDSS.z
+  - PAN-STARRS.PS1.y
+  - 2MASS.J
+  - 2MASS.H
+  - 2MASS.Ks
+  - WISE.W1
+  - WISE.W2
+  - WISE.W3
