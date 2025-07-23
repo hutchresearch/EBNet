@@ -85,8 +85,3 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.flux_paths)
-
-
-def prebatched_collate(batch):
-    flux_batch, rv_batch, meta_batch, period_batch = batch[0]
-    return flux_batch, rv_batch, meta_batch, period_batch

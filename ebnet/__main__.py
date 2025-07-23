@@ -8,7 +8,6 @@ import io
 import tempfile
 import skeletonkey as sk
 from collections import OrderedDict
-from dataset import prebatched_collate
 from runner import Runner
 from denorm import denormalize_labels, denormalize_std
 
@@ -80,7 +79,7 @@ def main(args) -> None:
     loader = torch.utils.data.DataLoader(
         dataset, 
         batch_size=1, 
-        collate_fn=prebatched_collate, 
+        collate_fn=lambda batch: batch[0], 
         shuffle=False,
         num_workers=0,
     )

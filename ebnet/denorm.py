@@ -20,8 +20,8 @@ def denormalize_labels(
     denorm_labels[:, 12] = 90.1 - (10 ** (labels[:, 12] + 0.6))
     denorm_labels[:, 13] = labels[:, 13] * 100
     denorm_labels[:, 14] = (10 ** (labels[:, 14] - 0.7)) - 0.02
-    denorm_labels[:, 15] = denorm_labels[:, 14] * torch.sin(torch.zeros_like(labels[:, 15])) #??
-    denorm_labels[:, 16] = denorm_labels[:, 14] * torch.cos(torch.zeros_like(labels[:, 16])) #??
+    denorm_labels[:, 15] = labels[:, 15]
+    denorm_labels[:, 16] = labels[:, 16]
     denorm_labels[:, 17] = 10 ** (labels[:, 17] + 1.5)
     denorm_labels[:, 18] = 10 ** (labels[:, 18] + 1.5)
     denorm_labels[:, 19] = labels[:, 19]
