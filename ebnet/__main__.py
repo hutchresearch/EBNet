@@ -19,18 +19,20 @@ def print_results_as_csv(pred, std, targets):
 
 @sk.unlock("./config.yaml")
 def main(args) -> None:
-    lwa = np.array(args.lwa)
-    lwa_sorted_indicies = np.argsort(lwa)
-    lcflux = np.array(args.lcflux)
-    lcflux = lcflux[lwa_sorted_indicies].tolist()
 
     if args.model == "ebnet":
         model_path = os.path.join(os.path.split(os.path.abspath(__file__))[0], "model_files/model.pth")
         model = sk.instantiate(args.eb_model, model_path=model_path)
     elif args.model == "ebnet+":
         model = sk.instantiate(args.eb_model_plus)
-        model_file = franken_load(os.path.join(os.path.split(os.path.abspath(__file__))[0], "model_files/eb_model_plus"), 2)
+        model_path = os.path.join(os.path.split(os.path.abspath(__file__))[0], "model_files/eb_model_plus")
+        model_file = franken_load(model_path, 2)
         model.load_state_dict(model_file, strict=False)
+    
+    lwa = np.array(args.lwa)
+    lwa_sorted_indicies = np.argsort(lwa)
+    lcflux = np.array(args.lcflux)
+    lcflux = lcflux[lwa_sorted_indicies].tolist()
 
     dataset = sk.instantiate(args.dataset, lcflux=lcflux, colflux=args.colflux)
 

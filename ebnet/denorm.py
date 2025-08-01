@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 def denormalize_labels(
     labels: torch.Tensor,
@@ -33,8 +34,29 @@ def denormalize_std(
     std_devs: torch.Tensor, 
     labels: torch.Tensor,      
 ) -> torch.Tensor:
-    labels_upper = labels + std_devs
     denorm_labels = denormalize_labels(labels)
-    denorm_labels_upper = denormalize_labels(labels_upper)
-    denorm_std = denorm_labels_upper - denorm_labels
+    denorm_std = torch.zeros_like(labels)
+
+    denorm_std[:,0]=(std_devs[:,0]*0.4)*denorm_labels[:,0]*np.log(10)
+    denorm_std[:,1]=(std_devs[:,1]*0.4)*denorm_labels[:,1]*np.log(10)
+    denorm_std[:,2]=std_devs[:,2]*denorm_labels[:,2]*np.log(10)
+    denorm_std[:,3]=std_devs[:,3]*denorm_labels[:,3]*np.log(10)
+    denorm_std[:,4]=std_devs[:,4]
+    denorm_std[:,5]=std_devs[:,5]
+    denorm_std[:,6]=(std_devs[:,6]*1.5)*denorm_labels[:,6]*np.log(10)
+    denorm_std[:,7]=(std_devs[:,7]*1.5)*denorm_labels[:,7]*np.log(10)
+    denorm_std[:,8]=(std_devs[:,8]*2)*denorm_labels[:,8]*np.log(10)
+    denorm_std[:,9]=(std_devs[:,9]*2)*denorm_labels[:,9]*np.log(10)
+    denorm_std[:,10]=(std_devs[:,10]*2)*denorm_labels[:,10]*np.log(10)
+    denorm_std[:,11]=std_devs[:,11]
+    denorm_std[:,12]=std_devs[:,12]*10**(labels[:,12]+0.6)*np.log(10)
+    denorm_std[:,13]=std_devs[:,13]*100
+    denorm_std[:,14]=std_devs[:,14]*10**(labels[:,14]-0.7)*np.log(10)
+    denorm_std[:,15]=std_devs[:,15]
+    denorm_std[:,16]=std_devs[:,16]
+    denorm_std[:,17]=(std_devs[:,17])*denorm_labels[:,17]*np.log(10)
+    denorm_std[:,18]=(std_devs[:,18])*denorm_labels[:,18]*np.log(10)
+    denorm_std[:,19]=std_devs[:,19]
+    denorm_std[:,20]=std_devs[:,20]
+    
     return denorm_std
