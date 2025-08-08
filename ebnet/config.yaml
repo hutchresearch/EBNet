@@ -1,39 +1,31 @@
-?verbose: False
-
-model: "ebnet+" # ebnet, ebnet+
-
 
 targets: ["teff1", "teff2", "teff_ratio", "q", "T0cos", "T0sin", "radius1", 
     "radius2", "mass1", "mass2", "sma", "rsma", "incl", "vgamma", "ecc",
     "eccsin", "ecccos", "k1", "k2", "rsma1", "rsma2"]
 
-dataset:
-  _target_: dataset.Dataset
-  data_dir_path: /research/hutchinson/data/ml_astro_binaries24/real_fits/ # replace with path to fits files
+target_to_model_type:
+  radius1: ebnet
+  radius2: ebnet
+  mass1: ebnet
+  mass2: ebnet
+  teff1: ebnet+
+  teff2: ebnet+
+  teff_ratio: ebnet+
+  rsma: ebnet
+  q: ebnet
+  sma: ebnet+
+  ecc: ebnet
+  T0cos: ebnet
+  T0sin: ebnet
+  incl: ebnet+
+  vgamma: ebnet
+  eccsin: ebnet
+  ecccos: ebnet
+  k1: ebnet
+  k2: ebnet
+  rsma1: ebnet
+  rsma2: ebnet
 
-eb_model_plus:
-  _target_: model.EBModelPlus
-  flux_in_channels: 50
-  rv_in_channels: 2
-  output_dim: 42
-  kernel_size: 2
-  flux_backbone_dim: 32
-  num_flux_backbone_conv_layers: 5
-  flux_conv_block_step: 1
-  rv_backbone_dim: 64
-  num_rv_backbone_conv_layers: 5
-  rv_conv_block_step: 1
-  meta_backbone_dim: 128
-  num_meta_backbone_conv_layers: 2
-  meta_conv_block_step: 2
-  num_final_backbone_conv_layers: 4
-  final_conv_block_step: 3
-  num_linear_layers: 2
-  linear_layer_dim: 2048
-  drop_p: 0.0
-
-eb_model:
-  _target_: model.LoadedModelWrapper
 
 lcflux:
   - Kepler_mean

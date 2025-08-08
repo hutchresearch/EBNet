@@ -13,15 +13,23 @@ class Dataset(torch.utils.data.Dataset):
         colflux: List[str],
     ) -> None:
         super(Dataset, self).__init__()
-        
+
+        self.flux_paths = []
+
         if isinstance(data_dir_path, str):
-            pattern = os.path.join(data_dir_path, "*.fits")
-            self.flux_paths = glob.glob(pattern)
-        else:
-            self.flux_paths = []
+            if data_dir_path.endswith(".fits") and os.path.isfile(data_dir_path):
+                self.flux_paths = [data_dir_path]
+            else:
+                pattern = os.path.join(data_dir_path, "*.fits")
+                self.flux_paths = glob.glob(pattern)
+
+        elif isinstance(data_dir_path, list):
             for path in data_dir_path:
-                pattern = os.path.join(path, "*.fits")
-                self.flux_paths.extend(glob.glob(pattern))
+                if path.endswith(".fits") and os.path.isfile(path):
+                    self.flux_paths.append(path)
+                else:
+                    pattern = os.path.join(path, "*.fits")
+                    self.flux_paths.extend(glob.glob(pattern))
 
         self.lx = 512
         self.lcflux = lcflux
