@@ -25,6 +25,9 @@ SOFTWARE.
 
 import os
 import io
+from collections import OrderedDict
+import tempfile
+import torch
 
 # Utility functions not used in the pipeline, but included for completeness.
 def save_chopped_file(load_path: str, save_path: str, chunks: int):
@@ -79,3 +82,43 @@ def save_chopped_file(load_path: str, save_path: str, chunks: int):
 
         save_name = os.path.join(save_path, f"model_chunk_{chunks-1}")
         save_chunk_single(save_name, file_in, last_chunk_size)
+
+
+def franken_load(load_path: str, chunks: int) -> OrderedDict:
+    """
+    Loads a PyTorch model from multiple binary files that were previously split.
+
+    Args:
+        load_path: str, The directory where the model chunks are located.
+        chunks: int, The number of model chunks to load.
+
+    Returns:
+        A ordered dictionary containing the PyTorch model state.
+    """
+
+    def load_member(load_path: str, file_out: io.BufferedReader, file_i: int) -> None:
+        """
+        Reads a single chunk of the model from disk and writes it to a buffer.
+
+        Args:
+            load_path: str, The directory where the model chunk files are located.
+            file_out: io.BufferedReader, The buffer where the model chunks are written.
+            file_i: int, The index of the model chunk to read.
+
+        """
+        load_name = os.path.join(load_path, f"model_chunk_{file_i}")
+        with open(load_name, "rb") as file_in:
+            file_out.write(file_in.read())
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        # Create a temporary file to write the model chunks.
+        model_path = os.path.join(tempdir, "model.pt")
+        with open(model_path, "wb") as file_out:
+            # Load each model chunk and write it to the buffer.
+            for i in range(chunks):
+                load_member(load_path, file_out, i)
+        
+        # Load the PyTorch model from the buffer.
+        state_dict = torch.load(model_path, map_location=torch.device("cpu"))
+
+    return state_dict

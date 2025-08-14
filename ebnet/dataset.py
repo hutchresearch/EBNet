@@ -13,15 +13,23 @@ class Dataset(torch.utils.data.Dataset):
         colflux: List[str],
     ) -> None:
         super(Dataset, self).__init__()
-        
+
+        self.flux_paths = []
+
         if isinstance(data_dir_path, str):
-            pattern = os.path.join(data_dir_path, "*.fits")
-            self.flux_paths = glob.glob(pattern)
-        else:
-            self.flux_paths = []
+            if data_dir_path.endswith(".fits") and os.path.isfile(data_dir_path):
+                self.flux_paths = [data_dir_path]
+            else:
+                pattern = os.path.join(data_dir_path, "*.fits")
+                self.flux_paths = glob.glob(pattern)
+
+        elif isinstance(data_dir_path, list):
             for path in data_dir_path:
-                pattern = os.path.join(path, "*.fits")
-                self.flux_paths.extend(glob.glob(pattern))
+                if path.endswith(".fits") and os.path.isfile(path):
+                    self.flux_paths.append(path)
+                else:
+                    pattern = os.path.join(path, "*.fits")
+                    self.flux_paths.extend(glob.glob(pattern))
 
         self.lx = 512
         self.lcflux = lcflux
@@ -35,7 +43,7 @@ class Dataset(torch.utils.data.Dataset):
         flux = np.zeros((n, self.lx, len(self.lcflux), 1))
         for i, band in enumerate(self.lcflux):
             flux[:, :, i, 0] = data[band].data
-
+        
         # Load RV data and scale by 100
         rv = np.zeros((n, self.lx, 2, 1))
         rv[:, :, 0, 0] = data["rv1"].data / 100
@@ -43,7 +51,6 @@ class Dataset(torch.utils.data.Dataset):
 
         # Load period
         period = data["period"].data
-        period = np.log10(period) - 1
 
         # Load parallax and error, handling key naming differences
         if "plx" in data.colnames:
@@ -62,10 +69,19 @@ class Dataset(torch.utils.data.Dataset):
             meta[:, i, 0] = data[col]
         
         flux = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
+        flux = self.normalize_flux(flux)
+
         rv = torch.from_numpy(rv.astype(np.float32)) # batch, rv_lengh, num_rvs, 1
+
         meta = torch.from_numpy(meta.astype(np.float32)) # batch, meta_len, 1
+        meta = self.normalize_meta(meta)
+
         period = torch.from_numpy(period.astype(np.float32)) # batch, period
+        period = self.normalize_period(period)
+
         parallax = torch.from_numpy(parallax.astype(np.float32)) # batch, parallax
+        parallax = self.normalize_parallax(parallax)
+
         parallax_error = torch.from_numpy(parallax_error.astype(np.float32)) # batch, parallax_error
 
         return flux, rv, meta, period, parallax, parallax_error
@@ -85,3 +101,20 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.flux_paths)
+    
+    def normalize_flux(self, flux):
+        normalized_flux  = flux / torch.nanmedian(flux, dim=1, keepdim=True).values
+        normalized_flux[normalized_flux.isnan()] = 0
+        return normalized_flux
+    
+    def normalize_period(self, period):
+        period = torch.log10(period) - 1
+        return period
+    
+    def normalize_meta(self, meta):
+        meta = meta / 20
+        return meta
+    
+    def normalize_parallax(self, parallax):
+        parallax = torch.log10(parallax + 5)
+        return parallax
