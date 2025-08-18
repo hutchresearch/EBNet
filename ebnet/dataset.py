@@ -91,9 +91,9 @@ class Dataset(torch.utils.data.Dataset):
         flux_path = self.flux_paths[i]
         flux_batch, rv_batch, meta_batch, period_batch, parallax_batch, parallax_error_batch = self._load_from_fits(flux_path)
 
-        flux_batch = flux_batch.permute(0, 2, 1, 3).squeeze()
-        rv_batch = rv_batch.permute(0, 2, 1, 3).squeeze()
-        meta_batch = meta_batch.squeeze()
+        flux_batch = flux_batch.permute(0, 2, 1, 3).squeeze(-1)
+        rv_batch = rv_batch.permute(0, 2, 1, 3).squeeze(-1)
+        meta_batch = meta_batch.squeeze(-1)
 
         period_parallax_batch = torch.hstack((period_batch[:, None], parallax_batch[:, None], parallax_error_batch[:, None]))
 
