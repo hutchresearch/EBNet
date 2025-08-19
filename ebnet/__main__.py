@@ -5,7 +5,6 @@ from astropy.table import Table
 def print_results_as_csv(result_table: Table):
     column_names = result_table.colnames
     print(",".join(column_names))
-
     for row in result_table:
         print(",".join(str(row[col]) for col in column_names))
 
@@ -28,10 +27,27 @@ def main():
         action="store_true",
         help="Enable verbose output during prediction."
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Optional path to save results as a FITS file. "
+             "If not given, results are printed as CSV."
+    )
 
     args = parser.parse_args()
+
     table = predict(args.data_path, model_type=args.model_type, verbose=args.verbose)
-    print_results_as_csv(table)
+
+    if args.output:
+        if args.output.lower().endswith(".fits"):
+            table.write(args.output, overwrite=True)
+            if args.verbose:
+                print(f"Saved results to {args.output}")
+        else:
+            raise ValueError("Output path must end with .fits")
+    else:
+        print_results_as_csv(table)
 
 if __name__ == "__main__":
     main()
