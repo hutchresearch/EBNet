@@ -119,6 +119,6 @@ def franken_load(load_path: str, chunks: int) -> OrderedDict:
                 load_member(load_path, file_out, i)
         
         # Load the PyTorch model from the buffer.
-        state_dict = torch.load(model_path, map_location=torch.device("cpu"))
+        state_dict = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
 
     return state_dict

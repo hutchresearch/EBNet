@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ebnet"
+version = "0.1.0"
+description = "EBNet package"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Logan Sizemore", email = "sizemolo@oregonstate.edu" }
+]
+requires-python = ">=3.8"
+dependencies = [
+  "torch",
+  "numpy",
+  "astropy",
+  "pyyaml",
+  "scipy",
+  "onnx2torch",
+  "tqdm",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ebnet*"]
+
+[tool.setuptools.package-data]
+ebnet = [
+  "config.yaml",
+  "model_files/*",
+  "model_files/*/*",
+  "model_files/*/*/*"
+]

@@ -351,8 +351,8 @@ class EBModelPlus(torch.nn.Module):
 class LoadedModelWrapper(torch.nn.Module):
     def __init__(self, model_path: str):
         super().__init__()
-        self.model = torch.load(model_path)
-        self.model.eval()  # Optional, but useful to ensure dropout/batchnorm behave correctly
+        self.model = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
+        self.model.eval() 
 
     def forward(
         self, 
