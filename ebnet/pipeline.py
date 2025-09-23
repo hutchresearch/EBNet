@@ -71,7 +71,10 @@ def compute_orbital_angles(pred, std, targets):
     return per0_pred, per0_std, phase0_pred, phase0_std
 
 
-def predict(data, model_type="mixed", verbose=False):
+def predict(data, model_type="mixed", verbose=False, seed=0):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     entry_point_path = os.path.split(os.path.abspath(__file__))[0]
     config = open_yaml(os.path.join(entry_point_path, "config.yaml"))
     targets = config["targets"]
@@ -90,6 +93,7 @@ def predict(data, model_type="mixed", verbose=False):
         lcflux=lcflux,
         colflux=colflux,
         data_dir_path=data,
+        verbose=verbose,
     )
 
     data_loader = torch.utils.data.DataLoader(
