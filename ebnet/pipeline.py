@@ -7,7 +7,7 @@ import os
 import yaml
 import tempfile
 from astropy.table import Table
-from scipy.stats import circstd
+import scipy.stats
 from ebnet.dataset import Dataset
 from ebnet.runner import Runner
 from ebnet.denorm import denormalize_labels, denormalize_std
@@ -17,9 +17,6 @@ from ebnet.model import EBModelPlus, LoadedModelWrapper
 def open_yaml(path: str) -> dict:
     with open(os.path.expanduser(path), "r") as handle:
         return yaml.safe_load(handle)
-
-import numpy as np
-import scipy.stats
 
 def compute_orbital_angles(pred, std, targets):
     num_samples = pred.shape[0]

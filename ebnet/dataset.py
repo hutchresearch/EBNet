@@ -46,7 +46,7 @@ class Dataset(torch.utils.data.Dataset):
             if band in table.colnames:
                 flux[:, :, i, 0] = table[band].data
             elif self.verbose:
-                print(f"{band} missing.")
+                print(f"[Missing Column] '{band}' not found.")
         
         return flux
     
@@ -59,7 +59,7 @@ class Dataset(torch.utils.data.Dataset):
             if rv_col in table.colnames:
                 rv[:, :, i, 0] = table[rv_col].data / 100
             elif self.verbose:
-                print(f"{rv_col} missing.")
+                print(f"[Missing Column] '{rv_col}' not found.")
         
         return rv
 
@@ -73,7 +73,7 @@ class Dataset(torch.utils.data.Dataset):
         else:
             parallax = np.zeros(n)
             if self.verbose:
-                print("parallax missing.")
+                print(f"[Missing Column] 'parallax' not found.")
 
         if "e_plx" in table.colnames:
             parallax_error = np.nan_to_num(table["e_plx"].data)
@@ -82,7 +82,7 @@ class Dataset(torch.utils.data.Dataset):
         else:
             parallax_error = np.zeros(n)
             if self.verbose:
-                print("parallax_error missing.")
+                print(f"[Missing Column] 'parallax_error' not found.")
 
         return parallax, parallax_error
 
@@ -96,7 +96,7 @@ class Dataset(torch.utils.data.Dataset):
             if meta_col in table.colnames:
                 meta[:, i, 0] = table[meta_col].data
             elif self.verbose:
-                print(f"{meta_col} missing.")
+                print(f"[Missing Column] '{meta_col}' not found.")
         
         return meta
 
@@ -104,7 +104,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # Period is a required column. 
         if "period" not in table.colnames:
-            raise KeyError("Required column 'period' is missing")
+            raise KeyError("[Missing Column] Required column 'period' not found.")
         
         return table["period"].data
 
