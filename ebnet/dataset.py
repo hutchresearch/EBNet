@@ -11,6 +11,7 @@ class Dataset(torch.utils.data.Dataset):
         data_dir_path: Union[str, List[str]],
         lcflux: List[str],
         colflux: List[str],
+        verbose: bool = True,
     ) -> None:
         super(Dataset, self).__init__()
 
@@ -34,40 +35,89 @@ class Dataset(torch.utils.data.Dataset):
         self.lx = 512
         self.lcflux = lcflux
         self.colflux = colflux
+        self.verbose = verbose
 
-    def _load_from_fits(self, path):
-        data = Table.read(path)
-        n = len(data)
+    def _load_flux_from_table(self, table):
+        n = len(table)
 
         # Load flux data
         flux = np.zeros((n, self.lx, len(self.lcflux), 1))
         for i, band in enumerate(self.lcflux):
-            flux[:, :, i, 0] = data[band].data
+            if band in table.colnames:
+                flux[:, :, i, 0] = table[band].data
+            elif self.verbose:
+                print(f"{band} missing.")
+        
+        return flux
+    
+    def _load_rv_from_table(self, table):
+        n = len(table)
         
         # Load RV data and scale by 100
         rv = np.zeros((n, self.lx, 2, 1))
-        rv[:, :, 0, 0] = data["rv1"].data / 100
-        rv[:, :, 1, 0] = data["rv2"].data / 100
+        for i, rv_col in enumerate(["rv1", "rv2"]):
+            if rv_col in table.colnames:
+                rv[:, :, i, 0] = table[rv_col].data / 100
+            elif self.verbose:
+                print(f"{rv_col} missing.")
+        
+        return rv
 
-        # Load period
-        period = data["period"].data
+    def _load_parallax_from_table(self, table):
+        n = len(table)
 
-        # Load parallax and error, handling key naming differences
-        if "plx" in data.colnames:
-            parallax = np.nan_to_num(data["plx"])
-            parallax_error = np.nan_to_num(data["e_plx"])
-        elif "parallax" in data.colnames:
-            parallax = np.nan_to_num(data["parallax"])
-            parallax_error = np.nan_to_num(data["parallax_error"])
+        if "plx" in table.colnames:
+            parallax = np.nan_to_num(table["plx"].data)
+        elif "parallax" in table.colnames:
+            parallax = np.nan_to_num(table["parallax"].data)
         else:
             parallax = np.zeros(n)
+            if self.verbose:
+                print("parallax missing.")
+
+        if "e_plx" in table.colnames:
+            parallax_error = np.nan_to_num(table["e_plx"].data)
+        elif "parallax_error" in table.colnames:
+            parallax_error = np.nan_to_num(table["parallax_error"].data)
+        else:
             parallax_error = np.zeros(n)
+            if self.verbose:
+                print("parallax_error missing.")
+
+        return parallax, parallax_error
+
+
+    def _load_meta_from_table(self, table):
+        n = len(table)
 
         # Load metadata columns
         meta = np.zeros((n, len(self.colflux), 1))
-        for i, col in enumerate(self.colflux):
-            meta[:, i, 0] = data[col]
+        for i, meta_col in enumerate(self.colflux):
+            if meta_col in table.colnames:
+                meta[:, i, 0] = table[meta_col].data
+            elif self.verbose:
+                print(f"{meta_col} missing.")
         
+        return meta
+
+    def _load_period_from_table(self, table):
+
+        # Period is a required column. 
+        if "period" not in table.colnames:
+            raise KeyError("Required column 'period' is missing")
+        
+        return table["period"].data
+
+    def _load_from_fits(self, path):
+        data = Table.read(path)
+
+        period = self._load_period_from_table(data)
+
+        flux = self._load_flux_from_table(data)
+        rv = self._load_rv_from_table(data)
+        parallax, parallax_error = self._load_parallax_from_table(data)
+        meta = self._load_meta_from_table(data)
+
         flux = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
         flux = self.normalize_flux(flux)
 
