@@ -7,7 +7,7 @@ import os
 import yaml
 import tempfile
 from astropy.table import Table
-from scipy.stats import circstd
+import scipy.stats
 from ebnet.dataset import Dataset
 from ebnet.runner import Runner
 from ebnet.denorm import denormalize_labels, denormalize_std
@@ -17,9 +17,6 @@ from ebnet.model import EBModelPlus, LoadedModelWrapper
 def open_yaml(path: str) -> dict:
     with open(os.path.expanduser(path), "r") as handle:
         return yaml.safe_load(handle)
-
-import numpy as np
-import scipy.stats
 
 def compute_orbital_angles(pred, std, targets):
     num_samples = pred.shape[0]
@@ -71,7 +68,10 @@ def compute_orbital_angles(pred, std, targets):
     return per0_pred, per0_std, phase0_pred, phase0_std
 
 
-def predict(data, model_type="mixed", verbose=False):
+def predict(data, model_type="mixed", verbose=False, seed=0):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     entry_point_path = os.path.split(os.path.abspath(__file__))[0]
     config = open_yaml(os.path.join(entry_point_path, "config.yaml"))
     targets = config["targets"]
@@ -90,6 +90,7 @@ def predict(data, model_type="mixed", verbose=False):
         lcflux=lcflux,
         colflux=colflux,
         data_dir_path=data,
+        verbose=verbose,
     )
 
     data_loader = torch.utils.data.DataLoader(
