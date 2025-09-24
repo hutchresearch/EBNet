@@ -13,27 +13,28 @@ def main():
     parser.add_argument(
         "data_path",
         type=str,
-        help="Path to the directory containing input data (e.g., FITS files)."
+        help="Path to input data, or a directory containing input data (e.g., FITS files)."
     )
     parser.add_argument(
-        "--model_type",
+        "-m", "--model_type",
         type=str,
         default="mixed",
         choices=["tf_model", "pt_model", "mixed"],
-        help="Model to use for prediction. Choices: 'ebnet', 'ebnet+', or 'mixed'. Default is 'ebnet+'."
+        help="Model to use for prediction. Choices: 'tf_model', 'pt_model', or 'mixed'. Default is 'mixed'."
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose output during prediction."
-    )
-    parser.add_argument(
-        "--output",
+        "-o", "--output",
         type=str,
         default=None,
         help="Optional path to save results as a FITS file. "
              "If not given, results are printed as CSV."
     )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose output during prediction."
+    )
+
 
     args = parser.parse_args()
 
