@@ -113,11 +113,11 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
     model2 = None
 
     if model_type in [ModelType.MODEL1, ModelType.MIXED]:
-        model1_path = os.path.join(entry_point_path, "model_files/model.pth")
+        model1_path = os.path.join(entry_point_path, "model_files/tf_model.pth")
         model1 = LoadedModelWrapper(model_path=model1_path)
 
     if model_type in [ModelType.MODEL2, ModelType.MIXED]:
-        model2_path = os.path.join(entry_point_path, "model_files/eb_model_plus")
+        model2_path = os.path.join(entry_point_path, "model_files/pt_model")
         model2 = EBModelPlus(
             flux_in_channels=50,
             rv_in_channels=2,

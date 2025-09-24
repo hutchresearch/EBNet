@@ -18,8 +18,8 @@ def main():
     parser.add_argument(
         "--model_type",
         type=str,
-        default="ebnet+",
-        choices=["ebnet", "ebnet+", "mixed"],
+        default="mixed",
+        choices=["tf_model", "pt_model", "mixed"],
         help="Model to use for prediction. Choices: 'ebnet', 'ebnet+', or 'mixed'. Default is 'ebnet+'."
     )
     parser.add_argument(
