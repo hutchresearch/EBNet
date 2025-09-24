@@ -8,11 +8,17 @@ import yaml
 import tempfile
 from astropy.table import Table
 import scipy.stats
+from enum import Enum
 from ebnet.dataset import Dataset
 from ebnet.runner import Runner
 from ebnet.denorm import denormalize_labels, denormalize_std
 from ebnet.chop_model import franken_load
 from ebnet.model import EBModelPlus, LoadedModelWrapper
+
+class ModelType(str, Enum):
+    MODEL1 = "ebnet"
+    MODEL2 = "ebnet+"
+    MIXED = "mixed"
 
 def open_yaml(path: str) -> dict:
     with open(os.path.expanduser(path), "r") as handle:
@@ -103,16 +109,16 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
 
     target_to_model_type = config["target_to_model_type"]
 
-    ebnet_model = None
-    ebnet_plus_model = None
+    model1 = None
+    model2 = None
 
-    if model_type in ["ebnet", "mixed"]:
-        ebnet_model_path = os.path.join(entry_point_path, "model_files/model.pth")
-        ebnet_model = LoadedModelWrapper(model_path=ebnet_model_path)
+    if model_type in [ModelType.MODEL1, ModelType.MIXED]:
+        model1_path = os.path.join(entry_point_path, "model_files/model.pth")
+        model1 = LoadedModelWrapper(model_path=model1_path)
 
-    if model_type in ["ebnet+", "mixed"]:
-        ebnet_plus_model_path = os.path.join(entry_point_path, "model_files/eb_model_plus")
-        ebnet_plus_model = EBModelPlus(
+    if model_type in [ModelType.MODEL2, ModelType.MIXED]:
+        model2_path = os.path.join(entry_point_path, "model_files/eb_model_plus")
+        model2 = EBModelPlus(
             flux_in_channels=50,
             rv_in_channels=2,
             output_dim=42,
@@ -132,61 +138,61 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
             linear_layer_dim=2048,
             drop_p=0.0,
         )
-        model_state_dict = franken_load(ebnet_plus_model_path, chunks=2)
-        ebnet_plus_model.load_state_dict(model_state_dict, strict=False)
+        model_state_dict = franken_load(model2_path, chunks=2)
+        model2.load_state_dict(model_state_dict, strict=False)
 
-    ebnet_pred = ebnet_std = None
-    ebnet_plus_pred = ebnet_plus_std = None
+    model1_pred = model1_std = None
+    model2_pred = model2_std = None
 
-    if model_type == "ebnet":
-        ebnet_pred, ebnet_std = Runner(
+    if model_type == ModelType.MODEL1:
+        model1_pred, model1_std = Runner(
             loader=data_loader,
-            model=ebnet_model,
+            model=model1,
             verbose=verbose,
-        ).run("Evaluating EBNet")
+        ).run(f"Evaluating {ModelType.MODEL1.value}")
 
-    elif model_type == "ebnet+":
-        ebnet_plus_pred, ebnet_plus_std = Runner(
+    elif model_type == ModelType.MODEL2:
+        model2_pred, model2_std = Runner(
             loader=data_loader,
-            model=ebnet_plus_model,
+            model=model2,
             verbose=verbose,
-        ).run("Evaluating EBNet+")
+        ).run(f"Evaluating {ModelType.MODEL2.value}")
 
-    elif model_type == "mixed":
-        ebnet_pred, ebnet_std = Runner(
+    elif model_type == ModelType.MIXED:
+        model1_pred, model1_std = Runner(
             loader=data_loader,
-            model=ebnet_model,
+            model=model1,
             verbose=verbose,
-        ).run("EBNet Pass")
-        ebnet_plus_pred, ebnet_plus_std = Runner(
+        ).run(f"{ModelType.MODEL1.value} Pass")
+        model2_pred, model2_std = Runner(
             loader=data_loader,
-            model=ebnet_plus_model,
+            model=model2,
             verbose=verbose,
-        ).run("EBNet+ Pass")
+        ).run(f"{ModelType.MODEL1.value} Pass")
 
     # Assemble mixed pred
-    if model_type == "mixed":
+    if model_type == ModelType.MIXED:
         combined_pred = []
         combined_std = []
 
         for i, target in enumerate(targets):
             source_model_type = target_to_model_type[target]
-            if source_model_type == "ebnet":
-                combined_pred.append(ebnet_pred[:, i])
-                combined_std.append(ebnet_std[:, i])
-            elif source_model_type == "ebnet+":
-                combined_pred.append(ebnet_plus_pred[:, i])
-                combined_std.append(ebnet_plus_std[:, i])
+            if source_model_type == ModelType.MODEL1:
+                combined_pred.append(model1_pred[:, i])
+                combined_std.append(model1_std[:, i])
+            elif source_model_type == ModelType.MODEL2:
+                combined_pred.append(model2_pred[:, i])
+                combined_std.append(model2_std[:, i])
             else:
                 raise ValueError(f"Unknown model type for target '{target}': {source_model_type}")
 
         pred = torch.stack(combined_pred, dim=1)
         std = torch.stack(combined_std, dim=1)
     else:
-        if model_type == "ebnet":
-            pred, std = ebnet_pred, ebnet_std
+        if model_type == ModelType.MODEL1:
+            pred, std = model1_pred, model1_std
         else:
-            pred, std = ebnet_plus_pred, ebnet_plus_std
+            pred, std = model2_pred, model2_std
 
     std = denormalize_std(std, pred).numpy()
     pred = denormalize_labels(pred).numpy()
