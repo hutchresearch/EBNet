@@ -4,27 +4,27 @@ targets: ["teff1", "teff2", "teff_ratio", "q", "T0cos", "T0sin", "radius1",
     "eccsin", "ecccos", "k1", "k2", "rsma1", "rsma2"]
 
 target_to_model_type:
-  radius1: ebnet
-  radius2: ebnet
-  mass1: ebnet
-  mass2: ebnet
-  teff1: ebnet+
-  teff2: ebnet+
-  teff_ratio: ebnet+
-  rsma: ebnet
-  q: ebnet
-  sma: ebnet+
-  ecc: ebnet
-  T0cos: ebnet
-  T0sin: ebnet
-  incl: ebnet+
-  vgamma: ebnet
-  eccsin: ebnet
-  ecccos: ebnet
-  k1: ebnet
-  k2: ebnet
-  rsma1: ebnet
-  rsma2: ebnet
+  radius1: tf_model
+  radius2: tf_model
+  mass1: tf_model
+  mass2: tf_model
+  teff1: pt_model
+  teff2: pt_model
+  teff_ratio: pt_model
+  rsma: tf_model
+  q: tf_model
+  sma: pt_model
+  ecc: tf_model
+  T0cos: tf_model
+  T0sin: tf_model
+  incl: pt_model
+  vgamma: tf_model
+  eccsin: tf_model
+  ecccos: tf_model
+  k1: tf_model
+  k2: tf_model
+  rsma1: tf_model
+  rsma2: tf_model
 
 
 lcflux:
