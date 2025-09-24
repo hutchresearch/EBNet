@@ -16,8 +16,8 @@ from ebnet.chop_model import franken_load
 from ebnet.model import EBModelPlus, LoadedModelWrapper
 
 class ModelType(str, Enum):
-    MODEL1 = "ebnet"
-    MODEL2 = "ebnet+"
+    MODEL1 = "tf_model"
+    MODEL2 = "pt_model"
     MIXED = "mixed"
 
 def open_yaml(path: str) -> dict:
