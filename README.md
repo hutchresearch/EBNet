@@ -90,10 +90,13 @@ It can include any number of the following **parallax columns**:
    ```bash
    python -m ebnet ./path/to/data/ -o output.fits
    ```
+Here’s an updated version of that section with more detail on inputs, options, and outputs:
+
+---
 
 ## Programmatic Usage
 
-EBNet can also be used directly from Python without calling the command line interface:
+EBNet can also be used directly from Python without calling the command line interface.
 
 ```python
 import ebnet
@@ -103,11 +106,34 @@ from astropy.table import Table
 path = "./sample.fits"
 data = Table.read(path)
 
-# Run predictions
+# Run predictions with the default "mixed" backend
 result = ebnet.predict(data)
 
 # Save results to a FITS file
 result.write("output.fits", format="fits", overwrite=True)
 ```
 
-The input to `predict` can be a FITS table, a path to a FITS table, or a path to a directory containing one or more FITS tables. 
+### Inputs
+
+The `predict` function accepts three types of inputs:
+
+* An in-memory Astropy `Table`
+* A path to a single FITS file
+* A path to a directory containing one or more FITS files
+
+### Options
+
+* `model_type`: Choose the backend for predictions. Options are:
+  * `"tf_model"` – TensorFlow-based model
+  * `"pt_model"` – PyTorch-based model
+  * `"mixed"` – Uses both models, selecting the backend per target for best predictions.
+* `verbose`: If `True`, prints progress messages and missing column warnings.
+* `seed`: Sets NumPy and PyTorch random seeds for reproducibility.
+
+### Outputs
+
+The function returns an Astropy `Table` with:
+* `<target>_pred`: Predicted value for each target parameter
+* `<target>_std`: One-sigma uncertainty for each prediction
+* `per0_pred` / `per0_std`: Derived argument of periastron in degrees and its uncertainty
+* `phase0_pred` / `phase0_std`: Derived orbital phase zero in cycles and its uncertainty

@@ -24,16 +24,28 @@ SOFTWARE.
 """
 
 import argparse
-from ebnet.pipeline import predict
 from astropy.table import Table
+from ebnet.pipeline import predict
 
 def print_results_as_csv(result_table: Table) -> None:
+    """
+    Prints the contents of an Astropy Table in CSV format.
+
+    Args:
+        result_table: Table, The results table containing prediction outputs.
+    """
     column_names = result_table.colnames
     print(",".join(column_names))
     for row in result_table:
         print(",".join(str(row[col]) for col in column_names))
 
 def main() -> None:
+    """
+    Entry point for the EBNet command-line interface.
+
+    Parses command-line arguments, runs predictions using the EBNet pipeline,
+    and saves or prints results depending on user input.
+    """
     parser = argparse.ArgumentParser(description="Run prediction using EBNet or EBNet+ models.")
     parser.add_argument(
         "data_path",

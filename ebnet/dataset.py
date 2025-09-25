@@ -24,11 +24,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import os
 import glob
-import torch
+import os
+from typing import List, Tuple, Union
+
 import numpy as np
-from typing import Union, List, Tuple
+import torch
 from astropy.table import Table
 
 class Dataset(torch.utils.data.Dataset):
@@ -39,6 +40,17 @@ class Dataset(torch.utils.data.Dataset):
         colflux: List[str],
         verbose: bool = True,
     ) -> None:
+        """
+        Initializes the Dataset with paths to FITS files, flux column names,
+        and metadata column names.
+
+        Args:
+            data_dir_path: str or list of str, Path to a FITS file, a directory
+                containing FITS files, or a list of such paths.
+            lcflux: list of str, Names of light-curve flux columns.
+            colflux: list of str, Names of metadata flux columns.
+            verbose: bool, Whether to print warnings when columns are missing.
+        """
         super(Dataset, self).__init__()
 
         self.flux_paths = []
@@ -64,6 +76,15 @@ class Dataset(torch.utils.data.Dataset):
         self.verbose = verbose
 
     def _load_flux_from_table(self, table: Table) -> np.ndarray:
+        """
+        Loads flux values from an Astropy Table.
+
+        Args:
+            table: Table, The input FITS table.
+
+        Returns:
+            np.ndarray, Flux array of shape (n, lx, num_flux, 1).
+        """
         n = len(table)
 
         # Load flux data
@@ -77,19 +98,37 @@ class Dataset(torch.utils.data.Dataset):
         return flux
     
     def _load_rv_from_table(self, table: Table) -> np.ndarray:
+        """
+        Loads radial velocity values from an Astropy Table.
+
+        Args:
+            table: Table, The input FITS table.
+
+        Returns:
+            np.ndarray, RV array of shape (n, lx, 2, 1).
+        """
         n = len(table)
         
         # Load RV data and scale by 100
         rv = np.zeros((n, self.lx, 2, 1))
         for i, rv_col in enumerate(["rv1", "rv2"]):
             if rv_col in table.colnames:
-                rv[:, :, i, 0] = table[rv_col].data / 100
+                rv[:, :, i, 0] = table[rv_col].data / 100 # Bad to norm in this function. But, whatever.
             elif self.verbose:
                 print(f"[Missing Column] '{rv_col}' not found.")
         
         return rv
 
     def _load_parallax_from_table(self, table: Table) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Loads parallax and parallax error from an Astropy Table.
+
+        Args:
+            table: Table, The input FITS table.
+
+        Returns:
+            tuple of np.ndarray, Arrays for parallax and parallax error.
+        """
         n = len(table)
 
         if "plx" in table.colnames:
@@ -114,6 +153,15 @@ class Dataset(torch.utils.data.Dataset):
 
 
     def _load_meta_from_table(self, table: Table) -> np.ndarray:
+        """
+        Loads metadata values from an Astropy Table.
+
+        Args:
+            table: Table, The input FITS table.
+
+        Returns:
+            np.ndarray, Metadata array of shape (n, num_meta, 1).
+        """
         n = len(table)
 
         # Load metadata columns
@@ -127,6 +175,18 @@ class Dataset(torch.utils.data.Dataset):
         return meta
 
     def _load_period_from_table(self, table: Table) -> np.ndarray:
+        """
+        Loads orbital period from an Astropy Table.
+
+        Args:
+            table: Table, The input FITS table.
+
+        Returns:
+            np.ndarray, Array containing orbital period values.
+
+        Raises:
+            KeyError: If the required 'period' column is missing.
+        """
 
         # Period is a required column. 
         if "period" not in table.colnames:
@@ -138,6 +198,17 @@ class Dataset(torch.utils.data.Dataset):
         self, 
         path: str
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Loads and formats flux, RV, metadata, period, parallax, and parallax error
+        from a FITS file into PyTorch tensors.
+
+        Args:
+            path: str, Path to the FITS file.
+
+        Returns:
+            tuple of torch.Tensor, Contains flux, RV, metadata, period, parallax,
+            and parallax error tensors.
+        """
         data = Table.read(path)
 
         period = self._load_period_from_table(data)
@@ -167,6 +238,16 @@ class Dataset(torch.utils.data.Dataset):
 
 
     def __getitem__(self, i: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Retrieves and formats the i-th sample from the dataset.
+
+        Args:
+            i: int, Index of the sample.
+
+        Returns:
+            tuple of torch.Tensor, Contains flux, RV, metadata, and a stacked
+            tensor of period, parallax, and parallax error.
+        """
         flux_path = self.flux_paths[i]
         flux_batch, rv_batch, meta_batch, period_batch, parallax_batch, parallax_error_batch = self._load_from_fits(flux_path)
 
@@ -179,21 +260,63 @@ class Dataset(torch.utils.data.Dataset):
         return flux_batch, rv_batch, meta_batch, period_parallax_batch
 
     def __len__(self) -> int:
+        """
+        Returns the number of FITS files in the dataset.
+
+        Returns:
+            int, Number of samples.
+        """
         return len(self.flux_paths)
     
     def normalize_flux(self, flux: torch.Tensor) -> torch.Tensor:
+        """
+        Normalizes flux values by dividing by the median value.
+
+        Args:
+            flux: torch.Tensor, Flux tensor.
+
+        Returns:
+            torch.Tensor, Normalized flux tensor with NaNs replaced by zero.
+        """
         normalized_flux  = flux / torch.nanmedian(flux, dim=1, keepdim=True).values
         normalized_flux[normalized_flux.isnan()] = 0
         return normalized_flux
     
     def normalize_period(self, period: torch.Tensor) -> torch.Tensor:
+        """
+        Normalizes orbital period values by applying log scaling.
+
+        Args:
+            period: torch.Tensor, Period tensor.
+
+        Returns:
+            torch.Tensor, Normalized period tensor.
+        """
         period = torch.log10(period) - 1
         return period
     
     def normalize_meta(self, meta: torch.Tensor) -> torch.Tensor:
+        """
+        Normalizes metadata values by dividing by 20.
+
+        Args:
+            meta: torch.Tensor, Metadata tensor.
+
+        Returns:
+            torch.Tensor, Normalized metadata tensor.
+        """
         meta = meta / 20
         return meta
     
     def normalize_parallax(self, parallax: torch.Tensor) -> torch.Tensor:
+        """
+        Normalizes parallax values by applying log scaling.
+
+        Args:
+            parallax: torch.Tensor, Parallax tensor.
+
+        Returns:
+            torch.Tensor, Normalized parallax tensor.
+        """
         parallax = torch.log10(parallax + 5)
         return parallax

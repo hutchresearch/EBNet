@@ -23,12 +23,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import os
 import io
-from collections import OrderedDict
+import os
 import tempfile
-import torch
+from collections import OrderedDict
 from typing import BinaryIO
+
+import torch
 
 # Utility functions not used in the pipeline, but included for completeness.
 def save_chopped_file(load_path: str, save_path: str, chunks: int) -> None:

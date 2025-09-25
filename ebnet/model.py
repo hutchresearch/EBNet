@@ -23,10 +23,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import torch
 from enum import Enum
 from functools import partial
-from typing import Callable, Tuple, List
+from typing import Callable, List, Tuple
+
+import torch
 
 get_dim_mults = lambda num_layers, conv_block_step: (
         2 ** ((torch.arange(num_layers) / conv_block_step).int())
@@ -42,6 +43,16 @@ class Activation(str, Enum):
     GELU = "gelu"
 
 def get_activation(act: Activation, inplace: bool=True) -> Callable[[], torch.nn.Module]:
+    """
+    Returns a callable constructor for the specified activation function.
+
+    Args:
+        act: Activation, The activation type to use.
+        inplace: bool, Whether to perform the operation in-place (if supported).
+
+    Returns:
+        Callable[[], torch.nn.Module], A callable that constructs the activation layer.
+    """
     if act == Activation.RELU:
         return partial(torch.nn.ReLU, inplace=inplace)
     elif act == Activation.LEAKY:
@@ -61,6 +72,10 @@ def get_activation(act: Activation, inplace: bool=True) -> Callable[[], torch.nn
     
 
 class CrossDimConvBlock2D(torch.nn.Module):
+    """
+    A 2D convolutional block that operates across dimensions with group normalization,
+    activation, and pooling.
+    """
     def __init__(
         self, 
         in_channels: int, 
@@ -68,6 +83,15 @@ class CrossDimConvBlock2D(torch.nn.Module):
         groups: int, 
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the 2D cross-dimension convolutional block.
+
+        Args:
+            in_channels: int, Number of input channels.
+            out_channels: int, Number of output channels.
+            groups: int, Number of groups for group normalization.
+            Act: Callable, Constructor for the activation function.
+        """
         super(CrossDimConvBlock2D, self).__init__()
         self.conv_layer = torch.nn.Conv2d(
             in_channels=1,
@@ -80,6 +104,15 @@ class CrossDimConvBlock2D(torch.nn.Module):
         self.pool = torch.nn.MaxPool2d(kernel_size=(1, in_channels))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the block.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after convolution, activation, pooling, and normalization.
+        """
         out = self.conv_layer(x)
         out = self.act(out)
         out = self.pool(out)
@@ -88,6 +121,9 @@ class CrossDimConvBlock2D(torch.nn.Module):
         return out
 
 class ConvBlock1D(torch.nn.Module):
+    """
+    A 1D convolutional block with activation and pooling.
+    """
     def __init__(
         self, 
         in_channels: int, 
@@ -96,18 +132,40 @@ class ConvBlock1D(torch.nn.Module):
         pooling_kernel: int, 
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the 1D convolutional block.
+
+        Args:
+            in_channels: int, Number of input channels.
+            out_channels: int, Number of output channels.
+            kernel_size: int, Size of the convolution kernel.
+            pooling_kernel: int, Size of the pooling kernel.
+            Act: Callable, Constructor for the activation function.
+        """
         super(ConvBlock1D, self).__init__()
         self.conv_layer = torch.nn.Conv1d(in_channels, out_channels, kernel_size)
         self.act = Act()
         self.pool = torch.nn.MaxPool1d(pooling_kernel)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the block.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after convolution, activation, and pooling.
+        """
         out = self.conv_layer(x)
         out = self.act(out)
         out = self.pool(out)
         return out
 
 class ConvBlock2D(torch.nn.Module):
+    """
+    A 2D convolutional block with activation and pooling.
+    """
     def __init__(
         self, 
         in_channels: int, 
@@ -116,12 +174,31 @@ class ConvBlock2D(torch.nn.Module):
         pooling_kernel: Tuple[int, int],
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the 2D convolutional block.
+
+        Args:
+            in_channels: int, Number of input channels.
+            out_channels: int, Number of output channels.
+            kernel_size: tuple of int, Size of the convolution kernel.
+            pooling_kernel: tuple of int, Size of the pooling kernel.
+            Act: Callable, Constructor for the activation function.
+        """
         super(ConvBlock2D, self).__init__()
         self.conv_layer = torch.nn.Conv2d(in_channels, out_channels, kernel_size)
         self.relu = Act()
         self.pool = torch.nn.MaxPool2d(pooling_kernel)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the block.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after convolution, activation, and pooling.
+        """
         out = self.conv_layer(x)
         out = self.relu(out)
         out = self.pool(out)
@@ -129,6 +206,9 @@ class ConvBlock2D(torch.nn.Module):
 
 
 class ConvBackbone1D(torch.nn.Module):
+    """
+    A sequential backbone of 1D convolutional blocks with group normalization and dropout.
+    """
     def __init__(
         self,
         model_dim: int,
@@ -139,6 +219,18 @@ class ConvBackbone1D(torch.nn.Module):
         drop_p: float,
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the 1D convolutional backbone.
+
+        Args:
+            model_dim: int, Base dimensionality for channels.
+            dim_mults: list of int, Multipliers for channel dimensions.
+            kernel_size: int, Size of the convolution kernel.
+            pooling_kernel: int, Size of the pooling kernel.
+            groups: int, Number of groups for group normalization.
+            drop_p: float, Dropout probability.
+            Act: Callable, Constructor for the activation function.
+        """
         super(ConvBackbone1D, self).__init__()
         conv_blocks = []
 
@@ -161,12 +253,24 @@ class ConvBackbone1D(torch.nn.Module):
         self.dropout = torch.nn.Dropout(drop_p)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the backbone.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after convolutions, normalization, and dropout.
+        """
         out = self.conv_blocks(x)
         out = self.gn(out)
         out = self.dropout(out)
         return out
 
 class ConvBackbone2D(torch.nn.Module):
+    """
+    A sequential backbone of 2D convolutional blocks with group normalization and dropout.
+    """
     def __init__(
         self,
         model_dim: int,
@@ -177,6 +281,18 @@ class ConvBackbone2D(torch.nn.Module):
         drop_p: float,
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the 2D convolutional backbone.
+
+        Args:
+            model_dim: int, Base dimensionality for channels.
+            dim_mults: list of int, Multipliers for channel dimensions.
+            kernel_size: int, Size of the convolution kernel.
+            pooling_kernel: int, Size of the pooling kernel.
+            groups: int, Number of groups for group normalization.
+            drop_p: float, Dropout probability.
+            Act: Callable, Constructor for the activation function.
+        """
         super(ConvBackbone2D, self).__init__()
         conv_blocks = []
 
@@ -199,12 +315,24 @@ class ConvBackbone2D(torch.nn.Module):
         self.dropout = torch.nn.Dropout(drop_p)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the backbone.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after convolutions, normalization, and dropout.
+        """
         out = self.conv_blocks(x)
         out = self.gn(out)
         out = self.dropout(out)
         return out
 
 class LinearBlock(torch.nn.Module):
+    """
+    A linear block with activation and dropout.
+    """
     def __init__(
         self, 
         in_features: int, 
@@ -212,18 +340,39 @@ class LinearBlock(torch.nn.Module):
         drop_p: float, 
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the linear block.
+
+        Args:
+            in_features: int, Number of input features.
+            out_features: int, Number of output features.
+            drop_p: float, Dropout probability.
+            Act: Callable, Constructor for the activation function.
+        """
         super(LinearBlock, self).__init__()
         self.layer = torch.nn.Linear(in_features, out_features)
         self.act = Act()            
         self.drop = torch.nn.Dropout(drop_p)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the block.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after linear transformation, activation, and dropout.
+        """
         x = self.layer(x)
         x = self.act(x)
         x = self.drop(x)
         return x
         
 class FeedForward(torch.nn.Module):
+    """
+    A feed-forward network composed of linear blocks with activation and dropout.
+    """
     def __init__(
         self, 
         linear_dim: int, 
@@ -232,6 +381,16 @@ class FeedForward(torch.nn.Module):
         drop_p: float, 
         Act: Callable[[], torch.nn.Module],
     ) -> None:
+        """
+        Initializes the feed-forward network.
+
+        Args:
+            linear_dim: int, Dimension of hidden layers.
+            output_dim: int, Dimension of the output layer.
+            num_layers: int, Number of linear layers.
+            drop_p: float, Dropout probability.
+            Act: Callable, Constructor for the activation function.
+        """
         super(FeedForward, self).__init__()
 
         self.layers = torch.nn.Sequential(
@@ -248,10 +407,23 @@ class FeedForward(torch.nn.Module):
         )
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the network.
+
+        Args:
+            x: torch.Tensor, Input tensor.
+
+        Returns:
+            torch.Tensor, Output tensor after linear layers and activations.
+        """
         return self.layers(x)
 
 
 class EBModelPlus(torch.nn.Module):
+    """
+    A PyTorch model for predicting stellar parameters from flux, RV, metadata,
+    and orbital period inputs. Combines convolutional backbones and feed-forward layers.
+    """
     def __init__(self, 
         flux_in_channels: int=50,
         rv_in_channels: int=2,
@@ -277,6 +449,31 @@ class EBModelPlus(torch.nn.Module):
         backbone_act: Activation=Activation.RELU,
         feed_forward_act: Activation=Activation.SIGMOID,
     ) -> None:
+        """
+        Initializes the EBModelPlus model.
+
+        Args:
+            flux_in_channels: int, Number of input flux channels.
+            rv_in_channels: int, Number of input RV channels.
+            output_dim: int, Dimension of the output predictions.
+            kernel_size: int, Convolution kernel size.
+            flux_backbone_dim: int, Base dimensionality for flux backbone.
+            num_flux_backbone_conv_layers: int, Number of convolution layers in flux backbone.
+            flux_conv_block_step: int, Step size for flux conv dimension multipliers.
+            rv_backbone_dim: int, Base dimensionality for RV backbone.
+            num_rv_backbone_conv_layers: int, Number of convolution layers in RV backbone.
+            rv_conv_block_step: int, Step size for RV conv dimension multipliers.
+            meta_backbone_dim: int, Base dimensionality for metadata backbone.
+            num_meta_backbone_conv_layers: int, Number of convolution layers in metadata backbone.
+            meta_conv_block_step: int, Step size for metadata conv dimension multipliers.
+            num_final_backbone_conv_layers: int, Number of convolution layers in final backbone.
+            final_conv_block_step: int, Step size for final conv dimension multipliers.
+            num_linear_layers: int, Number of feed-forward layers.
+            linear_layer_dim: int, Dimension of feed-forward hidden layers.
+            drop_p: float, Dropout probability.
+            flux_act, rv_act, meta_act, backbone_act, feed_forward_act: Activation,
+                Activation functions for different parts of the model.
+        """
         super(EBModelPlus, self).__init__()
 
         self.flux_in_channels = flux_in_channels
@@ -371,7 +568,18 @@ class EBModelPlus(torch.nn.Module):
         meta: torch.Tensor, 
         period: torch.Tensor
     ) -> torch.Tensor:
-        
+        """
+        Forward pass of the EBModelPlus model.
+
+        Args:
+            flux: torch.Tensor, Input flux tensor.
+            rv: torch.Tensor, Input radial velocity tensor.
+            meta: torch.Tensor, Input metadata tensor.
+            period: torch.Tensor, Input period tensor.
+
+        Returns:
+            torch.Tensor, Output prediction tensor.
+        """
         input_flux = flux.permute(0, 2, 1)[:, None, :, :]
         input_rv = rv.permute(0, 2, 1)[:, None, :, :]
         input_meta = meta[:, None, :]
@@ -410,6 +618,12 @@ class EBModelPlus(torch.nn.Module):
 class LoadedModelWrapper(torch.nn.Module):
     def __init__(self, model_path: str):
         super().__init__()
+        """
+        Loads a pre-trained model from the given file path.
+
+        Args:
+            model_path: str, Path to the serialized model file.
+        """
         self.model = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
         self.model.eval() 
 
@@ -420,7 +634,18 @@ class LoadedModelWrapper(torch.nn.Module):
         meta: torch.Tensor, 
         period: torch.Tensor
     ) -> torch.Tensor:
+        """
+        Forward pass of the loaded model with standardized inputs.
 
+        Args:
+            flux: torch.Tensor, Input flux tensor.
+            rv: torch.Tensor, Input radial velocity tensor.
+            meta: torch.Tensor, Input metadata tensor.
+            period: torch.Tensor, Tensor containing period, parallax, and parallax error.
+
+        Returns:
+            torch.Tensor, Model predictions.
+        """
         flux = flux.permute(0, 2, 1)[:, :, :, None]
         rv = rv.permute(0, 2, 1)[:, :, :, None]
         meta = meta[:, :, None]

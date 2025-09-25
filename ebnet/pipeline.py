@@ -26,27 +26,51 @@ SOFTWARE.
 import warnings
 warnings.filterwarnings("ignore")
 
-import numpy as np
-import torch
 import os
-import yaml
 import tempfile
-from astropy.table import Table
-import scipy.stats
 from enum import Enum
-from ebnet.dataset import Dataset
-from ebnet.runner import Runner
-from ebnet.denorm import denormalize_labels, denormalize_std
-from ebnet.chop_model import franken_load
-from ebnet.model import EBModelPlus, LoadedModelWrapper
 from typing import List, Tuple, Union
 
+import numpy as np
+import scipy.stats
+import torch
+import yaml
+from astropy.table import Table
+
+from ebnet.chop_model import franken_load
+from ebnet.dataset import Dataset
+from ebnet.denorm import denormalize_labels, denormalize_std
+from ebnet.model import EBModelPlus, LoadedModelWrapper
+from ebnet.runner import Runner
+
 class ModelType(str, Enum):
+    """
+    Identifiers for available prediction backends.
+
+    Values:
+        MODEL1: str, TensorFlow-backed model ("tf_model").
+        MODEL2: str, PyTorch-backed model ("pt_model").
+        MIXED: str, Hybrid mode routing targets to different backends ("mixed").
+    """
     MODEL1 = "tf_model"
     MODEL2 = "pt_model"
     MIXED = "mixed"
 
 def open_yaml(path: str) -> dict:
+    """
+    Loads a YAML configuration file.
+
+    Args:
+        path: str, Path to the YAML file. User home marker '~' is supported.
+
+    Returns:
+        dict, Parsed configuration dictionary.
+
+    Raises:
+        FileNotFoundError: If the path does not exist.
+        PermissionError: If the file cannot be read due to permissions.
+        yaml.YAMLError: If the file is not valid YAML.
+    """
     with open(os.path.expanduser(path), "r") as handle:
         return yaml.safe_load(handle)
 
@@ -55,6 +79,24 @@ def compute_orbital_angles(
     std: np.ndarray, 
     targets: List[str]
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Computes argument of periastron (per0) in degrees and phase zero (phase0) in cycles
+    with circular standard deviations derived from one-sigma perturbations.
+
+    Args:
+        pred: np.ndarray, Predicted normalized targets with shape (n, t).
+        std: np.ndarray, Predicted one-sigma uncertainties with shape (n, t).
+        targets: list of str, Target names including "eccsin", "ecccos", "T0sin", "T0cos".
+
+    Returns:
+        tuple of np.ndarray, (per0_pred_deg, per0_std_deg, phase0_pred_cycles, phase0_std_cycles).
+
+    Notes:
+        per0 is computed as arctan2(eccsin, ecccos) in degrees.
+        phase0 is computed as arctan2(T0sin, T0cos) divided by 2π in cycles.
+        Circular standard deviations are computed with scipy.stats.circstd on perturbed samples
+        within [-180, 180] degrees for per0 and [-0.5, 0.5] cycles for phase0.
+    """
     num_samples = pred.shape[0]
 
     eccsin_idx = targets.index("eccsin")
@@ -109,6 +151,26 @@ def predict(
     verbose: bool = False,
     seed: int = 0,
 ) -> Table:
+    """
+    Runs the EBNet inference pipeline and returns predictions as an Astropy Table.
+
+    Args:
+        data: str or Table, Path to a FITS file or directory of FITS files, or an in-memory Table.
+        model_type: str, Backend selection. One of {"tf_model", "pt_model", "mixed"}.
+        verbose: bool, Whether to print progress and file status messages.
+        seed: int, Random seed applied to NumPy and PyTorch.
+
+    Returns:
+        Table, Output table with prediction means and one-sigma uncertainties per target,
+        plus derived orbital angle columns.
+
+    Notes:
+        If an Astropy Table is provided, a temporary FITS is written for dataset loading.
+        Configuration is read from "config.yaml" colocated with this module.
+        In mixed mode, each target is routed to the backend specified by "target_to_model_type".
+        Output columns include "<target>_pred" and "<target>_std" for each configured target,
+        and the derived columns "per0_pred", "per0_std", "phase0_pred", "phase0_std".
+    """
     np.random.seed(seed)
     torch.manual_seed(seed)
 

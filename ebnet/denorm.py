@@ -26,6 +26,16 @@ SOFTWARE.
 import torch
 
 def denormalize_labels(labels: torch.Tensor) -> torch.Tensor:
+    """
+    Converts normalized label values back to their physical scales.
+
+    Args:
+        labels: torch.Tensor, The normalized labels tensor.
+
+    Returns:
+        torch.Tensor, The denormalized labels tensor with each column
+        scaled according to its original range.
+    """
     denorm_labels = torch.zeros_like(labels)
     denorm_labels[:, 0] = 10 ** ((labels[:, 0] * 0.4) + 3.85)
     denorm_labels[:, 1] = 10 ** ((labels[:, 1] * 0.4) + 3.85)
@@ -52,6 +62,18 @@ def denormalize_labels(labels: torch.Tensor) -> torch.Tensor:
 
 
 def denormalize_std(std_devs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    """
+    Converts normalized standard deviations back to their physical scales.
+
+    Args:
+        std_devs: torch.Tensor, The normalized standard deviation tensor.
+        labels: torch.Tensor, The normalized labels tensor used to compute
+            the corresponding scaling factors.
+
+    Returns:
+        torch.Tensor, The denormalized standard deviation tensor aligned
+        with the denormalized labels.
+    """
     denorm_labels = denormalize_labels(labels)
     denorm_std = torch.zeros_like(labels)
     log10 = torch.log(torch.tensor(10.0))
