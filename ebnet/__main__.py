@@ -27,13 +27,13 @@ import argparse
 from ebnet.pipeline import predict
 from astropy.table import Table
 
-def print_results_as_csv(result_table: Table):
+def print_results_as_csv(result_table: Table) -> None:
     column_names = result_table.colnames
     print(",".join(column_names))
     for row in result_table:
         print(",".join(str(row[col]) for col in column_names))
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run prediction using EBNet or EBNet+ models.")
     parser.add_argument(
         "data_path",

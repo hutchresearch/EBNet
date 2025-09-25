@@ -26,6 +26,7 @@ SOFTWARE.
 import torch
 from enum import Enum
 from functools import partial
+from typing import Callable, Tuple, List
 
 get_dim_mults = lambda num_layers, conv_block_step: (
         2 ** ((torch.arange(num_layers) / conv_block_step).int())
@@ -40,7 +41,7 @@ class Activation(str, Enum):
     PRELU = "prelu"
     GELU = "gelu"
 
-def get_activation(act: Activation, inplace=True):
+def get_activation(act: Activation, inplace: bool=True) -> Callable[[], torch.nn.Module]:
     if act == Activation.RELU:
         return partial(torch.nn.ReLU, inplace=inplace)
     elif act == Activation.LEAKY:
@@ -60,7 +61,13 @@ def get_activation(act: Activation, inplace=True):
     
 
 class CrossDimConvBlock2D(torch.nn.Module):
-    def __init__(self, in_channels, out_channels=64, groups=8, Act=torch.nn.ReLU):
+    def __init__(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        groups: int, 
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(CrossDimConvBlock2D, self).__init__()
         self.conv_layer = torch.nn.Conv2d(
             in_channels=1,
@@ -72,7 +79,7 @@ class CrossDimConvBlock2D(torch.nn.Module):
         self.act = Act()
         self.pool = torch.nn.MaxPool2d(kernel_size=(1, in_channels))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv_layer(x)
         out = self.act(out)
         out = self.pool(out)
@@ -81,26 +88,40 @@ class CrossDimConvBlock2D(torch.nn.Module):
         return out
 
 class ConvBlock1D(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=2, pooling_kernel=2, Act=torch.nn.ReLU):
+    def __init__(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        kernel_size: int, 
+        pooling_kernel: int, 
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(ConvBlock1D, self).__init__()
         self.conv_layer = torch.nn.Conv1d(in_channels, out_channels, kernel_size)
         self.act = Act()
         self.pool = torch.nn.MaxPool1d(pooling_kernel)
     
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv_layer(x)
         out = self.act(out)
         out = self.pool(out)
         return out
 
 class ConvBlock2D(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=(2, 1), pooling_kernel=(2, 1),  Act=torch.nn.ReLU):
+    def __init__(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        kernel_size: Tuple[int, int], 
+        pooling_kernel: Tuple[int, int],
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(ConvBlock2D, self).__init__()
         self.conv_layer = torch.nn.Conv2d(in_channels, out_channels, kernel_size)
         self.relu = Act()
         self.pool = torch.nn.MaxPool2d(pooling_kernel)
     
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv_layer(x)
         out = self.relu(out)
         out = self.pool(out)
@@ -110,14 +131,14 @@ class ConvBlock2D(torch.nn.Module):
 class ConvBackbone1D(torch.nn.Module):
     def __init__(
         self,
-        model_dim,
-        dim_mults,
-        kernel_size,
-        pooling_kernel,
-        groups,
-        drop_p,
-        Act=torch.nn.ReLU
-    ):
+        model_dim: int,
+        dim_mults: List[int],
+        kernel_size: int,
+        pooling_kernel: int,
+        groups: int,
+        drop_p: float,
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(ConvBackbone1D, self).__init__()
         conv_blocks = []
 
@@ -139,7 +160,7 @@ class ConvBackbone1D(torch.nn.Module):
         self.gn = torch.nn.GroupNorm(groups, out_channels)
         self.dropout = torch.nn.Dropout(drop_p)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv_blocks(x)
         out = self.gn(out)
         out = self.dropout(out)
@@ -148,14 +169,14 @@ class ConvBackbone1D(torch.nn.Module):
 class ConvBackbone2D(torch.nn.Module):
     def __init__(
         self,
-        model_dim,
-        dim_mults,
-        kernel_size,
-        pooling_kernel,
-        groups,
-        drop_p,
-        Act=torch.nn.ReLU
-    ):
+        model_dim: int,
+        dim_mults: List[int],
+        kernel_size: int,
+        pooling_kernel: int,
+        groups: int,
+        drop_p: float,
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(ConvBackbone2D, self).__init__()
         conv_blocks = []
 
@@ -177,14 +198,20 @@ class ConvBackbone2D(torch.nn.Module):
         self.gn = torch.nn.GroupNorm(groups, out_channels)
         self.dropout = torch.nn.Dropout(drop_p)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv_blocks(x)
         out = self.gn(out)
         out = self.dropout(out)
         return out
 
 class LinearBlock(torch.nn.Module):
-    def __init__(self, in_features: int, out_features: int, drop_p: float, Act=torch.nn.Sigmoid) -> None:
+    def __init__(
+        self, 
+        in_features: int, 
+        out_features: int, 
+        drop_p: float, 
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(LinearBlock, self).__init__()
         self.layer = torch.nn.Linear(in_features, out_features)
         self.act = Act()            
@@ -197,7 +224,14 @@ class LinearBlock(torch.nn.Module):
         return x
         
 class FeedForward(torch.nn.Module):
-    def __init__(self, linear_dim: int, output_dim: int, num_layers:int, drop_p: float, Act=torch.nn.Sigmoid) -> None:
+    def __init__(
+        self, 
+        linear_dim: int, 
+        output_dim: int, 
+        num_layers:int, 
+        drop_p: float, 
+        Act: Callable[[], torch.nn.Module],
+    ) -> None:
         super(FeedForward, self).__init__()
 
         self.layers = torch.nn.Sequential(
@@ -236,7 +270,7 @@ class EBModelPlus(torch.nn.Module):
         final_conv_block_step: int=2,
         num_linear_layers: int=6,
         linear_layer_dim: int=1024,
-        drop_p: int=0.1,
+        drop_p: float=0.1,
         flux_act: Activation=Activation.RELU,
         rv_act: Activation=Activation.RELU,
         meta_act: Activation=Activation.RELU,

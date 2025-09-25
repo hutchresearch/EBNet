@@ -28,9 +28,10 @@ import io
 from collections import OrderedDict
 import tempfile
 import torch
+from typing import BinaryIO
 
 # Utility functions not used in the pipeline, but included for completeness.
-def save_chopped_file(load_path: str, save_path: str, chunks: int):
+def save_chopped_file(load_path: str, save_path: str, chunks: int) -> None:
     """Splits a file into multiple chunks and saves them to disk.
 
     Args:
@@ -53,7 +54,7 @@ def save_chopped_file(load_path: str, save_path: str, chunks: int):
     if not os.path.isdir(save_path):
         raise ValueError("Invalid save directory path.")
 
-    def save_chunk_single(save_name: str, file_in: io.BufferedReader, chunk_size: int):
+    def save_chunk_single(save_name: str, file_in: io.BufferedReader, chunk_size: int) -> None:
         """Saves a single chunk of the input file to disk.
 
         Args:
@@ -96,13 +97,13 @@ def franken_load(load_path: str, chunks: int) -> OrderedDict:
         A ordered dictionary containing the PyTorch model state.
     """
 
-    def load_member(load_path: str, file_out: io.BufferedReader, file_i: int) -> None:
+    def load_member(load_path: str, file_out: BinaryIO, file_i: int) -> None:
         """
         Reads a single chunk of the model from disk and writes it to a buffer.
 
         Args:
             load_path: str, The directory where the model chunk files are located.
-            file_out: io.BufferedReader, The buffer where the model chunks are written.
+            file_out: BinaryIO, The buffer where the model chunks are written.
             file_i: int, The index of the model chunk to read.
 
         """

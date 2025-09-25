@@ -39,6 +39,7 @@ from ebnet.runner import Runner
 from ebnet.denorm import denormalize_labels, denormalize_std
 from ebnet.chop_model import franken_load
 from ebnet.model import EBModelPlus, LoadedModelWrapper
+from typing import List, Tuple, Union
 
 class ModelType(str, Enum):
     MODEL1 = "tf_model"
@@ -49,7 +50,11 @@ def open_yaml(path: str) -> dict:
     with open(os.path.expanduser(path), "r") as handle:
         return yaml.safe_load(handle)
 
-def compute_orbital_angles(pred, std, targets):
+def compute_orbital_angles(
+    pred: np.ndarray, 
+    std: np.ndarray, 
+    targets: List[str]
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     num_samples = pred.shape[0]
 
     eccsin_idx = targets.index("eccsin")
@@ -98,8 +103,12 @@ def compute_orbital_angles(pred, std, targets):
 
     return per0_pred, per0_std, phase0_pred, phase0_std
 
-
-def predict(data, model_type="mixed", verbose=False, seed=0):
+def predict(
+    data: Union[str, Table],
+    model_type: str = "mixed",
+    verbose: bool = False,
+    seed: int = 0,
+) -> Table:
     np.random.seed(seed)
     torch.manual_seed(seed)
 
@@ -111,6 +120,7 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
     lcflux = np.array(config["lcflux"])[np.argsort(lwa)].tolist()
     colflux = config["colflux"]
 
+    # Convert Table input to temp directory
     if isinstance(data, Table):
         temp_dir = tempfile.TemporaryDirectory()
         temp_fits_path = os.path.join(temp_dir.name, "temp_table.fits")
@@ -134,14 +144,19 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
 
     target_to_model_type = config["target_to_model_type"]
 
-    model1 = None
-    model2 = None
-
-    if model_type in [ModelType.MODEL1, ModelType.MIXED]:
+    # MODEL1 only
+    if model_type == ModelType.MODEL1:
         model1_path = os.path.join(entry_point_path, "model_files/tf_model.pth")
         model1 = LoadedModelWrapper(model_path=model1_path)
 
-    if model_type in [ModelType.MODEL2, ModelType.MIXED]:
+        pred, std = Runner(
+            loader=data_loader,
+            model=model1,
+            verbose=verbose,
+        ).run(f"Evaluating {ModelType.MODEL1.value}")
+
+    # MODEL2 only
+    elif model_type == ModelType.MODEL2:
         model2_path = os.path.join(entry_point_path, "model_files/pt_model")
         model2 = EBModelPlus(
             flux_in_channels=50,
@@ -166,39 +181,57 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
         model_state_dict = franken_load(model2_path, chunks=2)
         model2.load_state_dict(model_state_dict, strict=False)
 
-    model1_pred = model1_std = None
-    model2_pred = model2_std = None
-
-    if model_type == ModelType.MODEL1:
-        model1_pred, model1_std = Runner(
-            loader=data_loader,
-            model=model1,
-            verbose=verbose,
-        ).run(f"Evaluating {ModelType.MODEL1.value}")
-
-    elif model_type == ModelType.MODEL2:
-        model2_pred, model2_std = Runner(
+        pred, std = Runner(
             loader=data_loader,
             model=model2,
             verbose=verbose,
         ).run(f"Evaluating {ModelType.MODEL2.value}")
 
+    # MIXED mode
     elif model_type == ModelType.MIXED:
+        model1 = LoadedModelWrapper(
+            model_path=os.path.join(entry_point_path, "model_files/tf_model.pth")
+        )
+
+        model2 = EBModelPlus(
+            flux_in_channels=50,
+            rv_in_channels=2,
+            output_dim=42,
+            kernel_size=2,
+            flux_backbone_dim=32,
+            num_flux_backbone_conv_layers=5,
+            flux_conv_block_step=1,
+            rv_backbone_dim=64,
+            num_rv_backbone_conv_layers=5,
+            rv_conv_block_step=1,
+            meta_backbone_dim=128,
+            num_meta_backbone_conv_layers=2,
+            meta_conv_block_step=2,
+            num_final_backbone_conv_layers=4,
+            final_conv_block_step=3,
+            num_linear_layers=2,
+            linear_layer_dim=2048,
+            drop_p=0.0,
+        )
+        model2.load_state_dict(
+            franken_load(os.path.join(entry_point_path, "model_files/pt_model"), chunks=2),
+            strict=False,
+        )
+
         model1_pred, model1_std = Runner(
             loader=data_loader,
             model=model1,
             verbose=verbose,
         ).run(f"{ModelType.MODEL1.value} Pass")
+
         model2_pred, model2_std = Runner(
             loader=data_loader,
             model=model2,
             verbose=verbose,
-        ).run(f"{ModelType.MODEL1.value} Pass")
+        ).run(f"{ModelType.MODEL2.value} Pass")
 
-    # Assemble mixed pred
-    if model_type == ModelType.MIXED:
-        combined_pred = []
-        combined_std = []
+        combined_pred: list[torch.Tensor] = []
+        combined_std: list[torch.Tensor] = []
 
         for i, target in enumerate(targets):
             source_model_type = target_to_model_type[target]
@@ -209,32 +242,38 @@ def predict(data, model_type="mixed", verbose=False, seed=0):
                 combined_pred.append(model2_pred[:, i])
                 combined_std.append(model2_std[:, i])
             else:
-                raise ValueError(f"Unknown model type for target '{target}': {source_model_type}")
+                raise ValueError(
+                    f"Unknown model type for target '{target}': {source_model_type}"
+                )
 
         pred = torch.stack(combined_pred, dim=1)
         std = torch.stack(combined_std, dim=1)
+
     else:
-        if model_type == ModelType.MODEL1:
-            pred, std = model1_pred, model1_std
-        else:
-            pred, std = model2_pred, model2_std
+        raise ValueError(f"Unknown model type: {model_type}")
 
-    std = denormalize_std(std, pred).numpy()
-    pred = denormalize_labels(pred).numpy()
+    # denormalize predictions
+    std = denormalize_std(std, pred)
+    pred = denormalize_labels(pred)
 
+    # Build output table
     result_table = Table()
     for i, target in enumerate(targets):
-        result_table[f"{target}_pred"] = pred[:, i]
-        result_table[f"{target}_std"] = std[:, i]
-    
-    per0_pred, per0_std, phase0_pred, phase0_std = compute_orbital_angles(pred, std, targets)
-    
+        result_table[f"{target}_pred"] = pred[:, i].numpy()
+        result_table[f"{target}_std"] = std[:, i].numpy()
+
+    per0_pred, per0_std, phase0_pred, phase0_std = compute_orbital_angles(
+        pred.numpy(), std.numpy(), targets
+    )
+
     result_table["per0_pred"] = per0_pred
     result_table["per0_std"] = per0_std
     result_table["phase0_pred"] = phase0_pred
     result_table["phase0_std"] = phase0_std
 
+    # Drop uneeded columns
     for col in ["T0sin_pred", "T0sin_std", "T0cos_pred", "T0cos_std"]:
-        result_table.remove_column(col)
-    
+        if col in result_table.colnames:
+            result_table.remove_column(col)
+
     return result_table

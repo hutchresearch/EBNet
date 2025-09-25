@@ -28,7 +28,7 @@ import os
 import glob
 import torch
 import numpy as np
-from typing import Union, List
+from typing import Union, List, Tuple
 from astropy.table import Table
 
 class Dataset(torch.utils.data.Dataset):
@@ -63,7 +63,7 @@ class Dataset(torch.utils.data.Dataset):
         self.colflux = colflux
         self.verbose = verbose
 
-    def _load_flux_from_table(self, table):
+    def _load_flux_from_table(self, table: Table) -> np.ndarray:
         n = len(table)
 
         # Load flux data
@@ -76,7 +76,7 @@ class Dataset(torch.utils.data.Dataset):
         
         return flux
     
-    def _load_rv_from_table(self, table):
+    def _load_rv_from_table(self, table: Table) -> np.ndarray:
         n = len(table)
         
         # Load RV data and scale by 100
@@ -89,7 +89,7 @@ class Dataset(torch.utils.data.Dataset):
         
         return rv
 
-    def _load_parallax_from_table(self, table):
+    def _load_parallax_from_table(self, table: Table) -> Tuple[np.ndarray, np.ndarray]:
         n = len(table)
 
         if "plx" in table.colnames:
@@ -113,7 +113,7 @@ class Dataset(torch.utils.data.Dataset):
         return parallax, parallax_error
 
 
-    def _load_meta_from_table(self, table):
+    def _load_meta_from_table(self, table: Table) -> np.ndarray:
         n = len(table)
 
         # Load metadata columns
@@ -126,7 +126,7 @@ class Dataset(torch.utils.data.Dataset):
         
         return meta
 
-    def _load_period_from_table(self, table):
+    def _load_period_from_table(self, table: Table) -> np.ndarray:
 
         # Period is a required column. 
         if "period" not in table.colnames:
@@ -134,7 +134,10 @@ class Dataset(torch.utils.data.Dataset):
         
         return table["period"].data
 
-    def _load_from_fits(self, path):
+    def _load_from_fits(
+        self, 
+        path: str
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         data = Table.read(path)
 
         period = self._load_period_from_table(data)
@@ -144,26 +147,26 @@ class Dataset(torch.utils.data.Dataset):
         parallax, parallax_error = self._load_parallax_from_table(data)
         meta = self._load_meta_from_table(data)
 
-        flux = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
-        flux = self.normalize_flux(flux)
+        flux_formatted = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
+        flux_formatted  = self.normalize_flux(flux_formatted)
 
-        rv = torch.from_numpy(rv.astype(np.float32)) # batch, rv_lengh, num_rvs, 1
+        rv_formatted = torch.from_numpy(rv.astype(np.float32)) # batch, rv_lengh, num_rvs, 1
 
-        meta = torch.from_numpy(meta.astype(np.float32)) # batch, meta_len, 1
-        meta = self.normalize_meta(meta)
+        meta_formatted = torch.from_numpy(meta.astype(np.float32)) # batch, meta_len, 1
+        meta_formatted = self.normalize_meta(meta_formatted)
 
-        period = torch.from_numpy(period.astype(np.float32)) # batch, period
-        period = self.normalize_period(period)
+        period_formatted = torch.from_numpy(period.astype(np.float32)) # batch, period
+        period_formatted = self.normalize_period(period_formatted)
 
-        parallax = torch.from_numpy(parallax.astype(np.float32)) # batch, parallax
-        parallax = self.normalize_parallax(parallax)
+        parallax_formatted = torch.from_numpy(parallax.astype(np.float32)) # batch, parallax
+        parallax_formatted = self.normalize_parallax(parallax_formatted)
 
-        parallax_error = torch.from_numpy(parallax_error.astype(np.float32)) # batch, parallax_error
+        parallax_error_formatted = torch.from_numpy(parallax_error.astype(np.float32)) # batch, parallax_error
 
-        return flux, rv, meta, period, parallax, parallax_error
+        return flux_formatted, rv_formatted, meta_formatted, period_formatted, parallax_formatted, parallax_error_formatted
 
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         flux_path = self.flux_paths[i]
         flux_batch, rv_batch, meta_batch, period_batch, parallax_batch, parallax_error_batch = self._load_from_fits(flux_path)
 
@@ -175,22 +178,22 @@ class Dataset(torch.utils.data.Dataset):
 
         return flux_batch, rv_batch, meta_batch, period_parallax_batch
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.flux_paths)
     
-    def normalize_flux(self, flux):
+    def normalize_flux(self, flux: torch.Tensor) -> torch.Tensor:
         normalized_flux  = flux / torch.nanmedian(flux, dim=1, keepdim=True).values
         normalized_flux[normalized_flux.isnan()] = 0
         return normalized_flux
     
-    def normalize_period(self, period):
+    def normalize_period(self, period: torch.Tensor) -> torch.Tensor:
         period = torch.log10(period) - 1
         return period
     
-    def normalize_meta(self, meta):
+    def normalize_meta(self, meta: torch.Tensor) -> torch.Tensor:
         meta = meta / 20
         return meta
     
-    def normalize_parallax(self, parallax):
+    def normalize_parallax(self, parallax: torch.Tensor) -> torch.Tensor:
         parallax = torch.log10(parallax + 5)
         return parallax

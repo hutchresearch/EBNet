@@ -27,7 +27,10 @@ import torch
 from typing import Tuple
 from tqdm import tqdm
 
-def to_device(*args, device=torch.device("cpu")):
+def to_device(
+    *args: torch.Tensor, 
+    device: torch.device=torch.device("cpu")
+) -> Tuple[torch.Tensor, ...]:
     cast_tensors = []
     for tensor in args:
         cast_tensors.append(tensor.to(device))
@@ -47,7 +50,7 @@ class Runner:
         self.device = device
         self.verbose = verbose
 
-    def run(self, desc: str) -> torch.Tensor:
+    def run(self, desc: str) -> Tuple[torch.Tensor, torch.Tensor]:
         self.model.train(False)
         batch_predictions = []
 
@@ -61,7 +64,7 @@ class Runner:
         pred_std = torch.sqrt(torch.exp(pred_log_var))
         return pred, pred_std
 
-    def _run_batch(self, batch) -> Tuple[torch.Tensor]:
+    def _run_batch(self, batch: Tuple[torch.Tensor, ...]) -> torch.Tensor:
         flux, rv, meta, period = to_device(*batch, device=self.device)
         prediction = self.model(flux, rv, meta, period)
         return prediction
