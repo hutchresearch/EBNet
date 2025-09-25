@@ -90,3 +90,24 @@ It can include any number of the following **parallax columns**:
    ```bash
    python -m ebnet ./path/to/data/ -o output.fits
    ```
+
+## Programmatic Usage
+
+EBNet can also be used directly from Python without calling the command line interface:
+
+```python
+import ebnet
+from astropy.table import Table
+
+# Load input data from a FITS file
+path = "./sample.fits"
+data = Table.read(path)
+
+# Run predictions
+result = ebnet.predict(data)
+
+# Save results to a FITS file
+result.write("output.fits", format="fits", overwrite=True)
+```
+
+The input to `predict` can be a FITS table, a path to a FITS table, or a path to a directory containing one or more FITS tables. 
