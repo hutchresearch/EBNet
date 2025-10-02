@@ -32,6 +32,9 @@ python -m ebnet <data_path> --model_type <model_type> --output <output_path> --v
   * `tf_model`
   * `pt_model`
   * `mixed`
+* **`-mt, --meta_type`**: Metadata representation type. Default is `magnitude`. Options:  
+  * `magnitude` — raw magnitudes (catalog-style).  
+  * `flux` — log10(lambda * F_lambda) representation.  
 * **`-o, --output`**: Path to save results as a FITS table. If not provided, results are printed as CSV to standard output.
 * **`-v, --verbose`**: Enable verbose output.
 
@@ -127,6 +130,9 @@ The `predict` function accepts three types of inputs:
   * `"tf_model"` – TensorFlow-based model
   * `"pt_model"` – PyTorch-based model
   * `"mixed"` – Uses both models, selecting the backend per target for best predictions.
+* `meta_type`: Metadata representation type. Options:  
+  * `magnitude` — raw magnitudes (catalog-style).  
+  * `flux` — log10(lambda * F_lambda) representation.  
 * `verbose`: If `True`, prints progress messages and missing column warnings.
 * `seed`: Sets NumPy and PyTorch random seeds for reproducibility.
 
