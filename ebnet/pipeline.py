@@ -149,6 +149,7 @@ def predict(
     data: Union[str, Table],
     model_type: str = "mixed",
     verbose: bool = False,
+    meta_type: bool = "magnitude",
     seed: int = 0,
 ) -> Table:
     """
@@ -181,6 +182,8 @@ def predict(
     lwa = np.array(config["lwa"])
     lcflux = np.array(config["lcflux"])[np.argsort(lwa)].tolist()
     colflux = config["colflux"]
+    colwa = config["colwa"]
+    zero_points=config["photometric_zero_points"]
 
     # Convert Table input to temp directory
     if isinstance(data, Table):
@@ -190,9 +193,12 @@ def predict(
         data = temp_dir.name
 
     dataset = Dataset(
+        data_dir_path=data,
         lcflux=lcflux,
         colflux=colflux,
-        data_dir_path=data,
+        colwa=colwa,
+        zero_points=zero_points,
+        meta_type=meta_type,
         verbose=verbose,
     )
 

@@ -23,7 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+from enum import Enum
 import glob
 import os
 from typing import List, Tuple, Union
@@ -32,12 +32,19 @@ import numpy as np
 import torch
 from astropy.table import Table
 
+class MetaType(str, Enum):
+    MAGNITUDE = "magnitude"
+    FLUX = "flux"
+
 class Dataset(torch.utils.data.Dataset):
     def __init__(
         self, 
         data_dir_path: Union[str, List[str]],
         lcflux: List[str],
         colflux: List[str],
+        colwa: List[str],
+        zero_points: List[str],
+        meta_type: bool,
         verbose: bool = True,
     ) -> None:
         """
@@ -73,6 +80,9 @@ class Dataset(torch.utils.data.Dataset):
         self.lx = 512
         self.lcflux = lcflux
         self.colflux = colflux
+        self.colwa = colwa
+        self.zero_points = zero_points
+        self.meta_type = meta_type
         self.verbose = verbose
 
     def _load_flux_from_table(self, table: Table) -> np.ndarray:
@@ -218,6 +228,9 @@ class Dataset(torch.utils.data.Dataset):
         parallax, parallax_error = self._load_parallax_from_table(data)
         meta = self._load_meta_from_table(data)
 
+        if self.meta_type == MetaType.MAGNITUDE:
+            meta = self.convert_metadata(meta)
+
         flux_formatted = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
         flux_formatted  = self.normalize_flux(flux_formatted)
 
@@ -235,7 +248,6 @@ class Dataset(torch.utils.data.Dataset):
         parallax_error_formatted = torch.from_numpy(parallax_error.astype(np.float32)) # batch, parallax_error
 
         return flux_formatted, rv_formatted, meta_formatted, period_formatted, parallax_formatted, parallax_error_formatted
-
 
     def __getitem__(self, i: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -320,3 +332,22 @@ class Dataset(torch.utils.data.Dataset):
         """
         parallax = torch.log10(parallax + 5)
         return parallax
+    
+    def convert_metadata(self, mag: np.ndarray) -> np.ndarray:
+        """
+        Converts magnitudes into log-scaled metadata values.
+
+        The conversion applies the standard relation between magnitude and
+        flux using bandpass zero points, then multiplies by the central
+        wavelength and takes base-10 logarithm to produce values in
+        log10(lambda * F_lambda).
+
+        Args:
+            mag: np.ndarray, Input magnitudes.
+
+        Returns:
+            np.ndarray, Converted log-scaled metadata.
+        """
+        zero_points = np.array(self.zero_points)[None, :, None]
+        colwa = np.array(self.colwa)[None, :, None]
+        return np.log10((10 ** (-mag / 2.5)) * zero_points * colwa)

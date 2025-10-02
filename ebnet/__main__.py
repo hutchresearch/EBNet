@@ -60,6 +60,14 @@ def main() -> None:
         help="Model to use for prediction. Choices: 'tf_model', 'pt_model', or 'mixed'. Default is 'mixed'."
     )
     parser.add_argument(
+        "-mt", "--meta_type",
+        type=str,
+        default="magnitude",
+        choices=["magnitude", "flux"],
+        help="Type of metadata representation. Choices: 'magnitude' for raw magnitudes "
+             "or 'flux' for log10(lambda * F_lambda). Default is 'magnitude'."
+    )
+    parser.add_argument(
         "-o", "--output",
         type=str,
         default=None,
@@ -75,7 +83,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    table = predict(args.data_path, model_type=args.model_type, verbose=args.verbose)
+    table = predict(
+        args.data_path, 
+        model_type=args.model_type, 
+        meta_type=args.meta_type, 
+        verbose=args.verbose
+    )
 
     if args.output:
         if args.output.lower().endswith(".fits"):
