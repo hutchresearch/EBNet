@@ -148,8 +148,9 @@ def compute_orbital_angles(
 def predict(
     data: Union[str, Table],
     model_type: str = "mixed",
-    verbose: bool = False,
     meta_type: bool = "magnitude",
+    download_flux: bool = False,
+    verbose: bool = False,
     seed: int = 0,
 ) -> Table:
     """
@@ -199,6 +200,7 @@ def predict(
         colwa=colwa,
         zero_points=zero_points,
         meta_type=meta_type,
+        download_flux=download_flux,
         verbose=verbose,
     )
 
