@@ -30,11 +30,18 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import torch
-from astropy.table import Table
+from astropy.table import Table, Column
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib.parse
+
+import requests
+from io import BytesIO
 
 class MetaType(str, Enum):
     MAGNITUDE = "magnitude"
     FLUX = "flux"
+    FLUX_JY = "flux_jy"
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -44,8 +51,10 @@ class Dataset(torch.utils.data.Dataset):
         colflux: List[str],
         colwa: List[str],
         zero_points: List[str],
-        meta_type: bool,
-        verbose: bool = True,
+        meta_type: MetaType,
+        download_flux: bool,
+        num_workers: int = 1,
+        verbose: bool = False,
     ) -> None:
         """
         Initializes the Dataset with paths to FITS files, flux column names,
@@ -83,6 +92,8 @@ class Dataset(torch.utils.data.Dataset):
         self.colwa = colwa
         self.zero_points = zero_points
         self.meta_type = meta_type
+        self.download_flux = download_flux
+        self.num_workers = num_workers
         self.verbose = verbose
 
     def _load_flux_from_table(self, table: Table) -> np.ndarray:
@@ -221,6 +232,12 @@ class Dataset(torch.utils.data.Dataset):
         """
         data = Table.read(path)
 
+        if self.download_flux:
+            if self.verbose:
+                print("Downloading SED metadata from vizier. Overwriting table values.")
+            data = self.download_fill_metadata_flux(data)
+            self.meta_type = MetaType.FLUX_JY
+
         period = self._load_period_from_table(data)
 
         flux = self._load_flux_from_table(data)
@@ -228,8 +245,10 @@ class Dataset(torch.utils.data.Dataset):
         parallax, parallax_error = self._load_parallax_from_table(data)
         meta = self._load_meta_from_table(data)
 
-        if self.meta_type == MetaType.MAGNITUDE:
-            meta = self.convert_metadata(meta)
+        if self.meta_type == MetaType.FLUX_JY:
+            meta = self.jy_to_log_lambda_flux(meta)
+        elif self.meta_type == MetaType.MAGNITUDE:
+            meta = self.mags_to_log_lambda_flux(meta)
 
         flux_formatted = torch.from_numpy(flux.astype(np.float32)) # batch, flux_lengh, num_flux, 1
         flux_formatted  = self.normalize_flux(flux_formatted)
@@ -304,6 +323,7 @@ class Dataset(torch.utils.data.Dataset):
         Returns:
             torch.Tensor, Normalized period tensor.
         """
+        period = torch.clamp(period, min=1e-6)
         period = torch.log10(period) - 1
         return period
     
@@ -333,7 +353,7 @@ class Dataset(torch.utils.data.Dataset):
         parallax = torch.log10(parallax + 5)
         return parallax
     
-    def convert_metadata(self, mag: np.ndarray) -> np.ndarray:
+    def mags_to_log_lambda_flux(self, mag: np.ndarray) -> np.ndarray:
         """
         Converts magnitudes into log-scaled metadata values.
 
@@ -351,3 +371,104 @@ class Dataset(torch.utils.data.Dataset):
         zero_points = np.array(self.zero_points)[None, :, None]
         colwa = np.array(self.colwa)[None, :, None]
         return np.log10((10 ** (-mag / 2.5)) * zero_points * colwa)
+
+    def jy_to_log_lambda_flux(self, flux_jy):
+        """
+        Convert fluxes in Jy to log10(lambda * F_lambda) in cgs units.
+
+        Args:
+            flux_jy : array_like, Flux values in Jy.
+            lambda_angstrom : array_like, Effective wavelengths of the bands in Angstrom.
+
+        Returns:
+            np.ndarray
+                log10(lambda * F_lambda) values.
+        """
+        c_ang_s = 2.99792458e18  # speed of light in Angstrom/s
+        lambda_angstrom = np.array(self.colwa)[None, :, None]
+        flux_cgs_hz = np.array(flux_jy) * 1e-23
+        f_lambda = flux_cgs_hz * (c_ang_s / (np.array(lambda_angstrom) ** 2))
+        log_lambda_flux  = np.log10(f_lambda * lambda_angstrom)
+        return np.nan_to_num(log_lambda_flux, nan=0, posinf=0, neginf=0)
+
+    def download_fill_metadata_flux(self, data: Table) -> Table:
+        """
+        Download flux metadata for each target in the input table and
+        add the requested flux columns (self.colflux) to the table.
+        This will overwrite any flux values that currently exist in the table. 
+
+        Args:
+            data: Table, Input table containing at least 'RAJ2000' and 'DEJ2000'.
+
+        Returns:
+            Table, Input table with additional columns for flux metadata.
+        """    
+        def fetch_sed(ra, dec, radius="1"):
+            target = f"{ra} {dec}"
+            target_enc = urllib.parse.quote(target)
+            url = f"https://vizier.cds.unistra.fr/viz-bin/sed?-c={target_enc}&-c.rs={radius}&-out.form=VOTable"
+            try:
+                if self.verbose:
+                    print(f"Downloading {url}", end=" ")
+                resp = requests.get(url, timeout=60)
+                resp.raise_for_status()  # raise HTTPError if bad response
+                t = Table.read(BytesIO(resp.content), format="votable")
+                if self.verbose:
+                    print("[Done]")
+                return t
+            except Exception as e:
+                return e
+
+        ra_batch = data["RAJ2000"]
+        dec_batch = data["DEJ2000"]
+
+        # prepare empty columns for requested fluxes
+        for col in self.colflux:
+            if col in data.colnames:
+                data[col][:] = 0
+            else:
+                data.add_column(Column(np.full(len(data), 0), name=col))
+
+        with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
+            futures = {
+                executor.submit(fetch_sed, ra, dec): idx
+                for idx, (ra, dec) in enumerate(zip(ra_batch, dec_batch))
+            }
+
+            for future in as_completed(futures):
+                idx = futures[future]
+                result = future.result()
+
+                if isinstance(result, Exception):
+                    if self.verbose:
+                        print(f"SED query failed for row {idx}: {result}")
+                    continue
+                
+                sed_table = result
+                for filter_name in self.colflux:
+                    try:
+                        filters = np.char.replace(sed_table["sed_filter"].astype(str), ":", ".")
+                        filters = np.char.replace(filters, "/", ".")
+                        mask = filters == filter_name
+
+                        if np.any(mask):
+                            rows = np.where(mask)[0]
+
+                            if "sed_eflux" in sed_table.colnames:
+                                # prefer rows with finite, positive error
+                                errs = sed_table["sed_eflux"][rows].astype(float)
+                                good = np.isfinite(errs) & (errs > 0)
+                                if np.any(good):
+                                    # choose row with smallest error
+                                    chosen_idx = rows[np.argmin(errs[good])]
+                                else:
+                                    chosen_idx = rows[0]
+                            else:
+                                chosen_idx = rows[0]
+
+                            flux_value = sed_table["sed_flux"][chosen_idx]
+                            data[filter_name][idx] = flux_value
+                    except Exception as e:
+                        if self.verbose:
+                            print(f"Could not update {filter_name} for row {idx}: {e}", flush=True)
+        return data

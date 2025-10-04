@@ -75,6 +75,19 @@ def main() -> None:
              "If not given, results are printed as CSV."
     )
     parser.add_argument(
+        "-d", "--download_flux",
+        action="store_true",
+        help="Will download SED flux metadata from visier."
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=1,
+        choices=list(range(1, 9)),
+        help="Number of workers used to download metadata flux. Default 1."
+             "This will increase the speed of download, but you may be rate limited."
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose output during prediction."
@@ -87,7 +100,9 @@ def main() -> None:
         args.data_path, 
         model_type=args.model_type, 
         meta_type=args.meta_type, 
-        verbose=args.verbose
+        download_flux=args.download_flux,
+        num_workers=args.num_workers,
+        verbose=args.verbose,
     )
 
     if args.output:
