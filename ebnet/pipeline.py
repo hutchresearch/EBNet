@@ -150,6 +150,7 @@ def predict(
     model_type: str = "mixed",
     meta_type: bool = "magnitude",
     download_flux: bool = False,
+    num_workers: int = 1,
     verbose: bool = False,
     seed: int = 0,
 ) -> Table:
@@ -201,6 +202,7 @@ def predict(
         zero_points=zero_points,
         meta_type=meta_type,
         download_flux=download_flux,
+        num_workers=num_workers,
         verbose=verbose,
     )
 
