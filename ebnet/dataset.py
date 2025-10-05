@@ -26,6 +26,7 @@ SOFTWARE.
 from enum import Enum
 import glob
 import os
+import sys
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -107,6 +108,11 @@ class Dataset(torch.utils.data.Dataset):
         self.download_flux = download_flux
         self.num_workers = num_workers
         self.verbose = verbose
+    
+    def _vprint(self, *args, **kwargs) -> None:
+        """Print only when verbose mode is enabled (to stderr)."""
+        if self.verbose:
+            print(*args, file=sys.stderr, **kwargs)
 
     def _load_flux_from_table(self, table: Table) -> np.ndarray:
         """
@@ -125,8 +131,8 @@ class Dataset(torch.utils.data.Dataset):
         for i, band in enumerate(self.lcflux):
             if band in table.colnames:
                 flux[:, :, i, 0] = table[band].data
-            elif self.verbose:
-                print(f"[Missing Column] '{band}' not found.")
+            else:
+                self._vprint(f"[Missing Column] '{band}' not found.")
         
         return flux
     
@@ -147,8 +153,8 @@ class Dataset(torch.utils.data.Dataset):
         for i, rv_col in enumerate(["rv1", "rv2"]):
             if rv_col in table.colnames:
                 rv[:, :, i, 0] = table[rv_col].data / 100 # Bad to norm in this function. But, whatever.
-            elif self.verbose:
-                print(f"[Missing Column] '{rv_col}' not found.")
+            else:
+                self._vprint(f"[Missing Column] '{rv_col}' not found.")
         
         return rv
 
@@ -170,8 +176,7 @@ class Dataset(torch.utils.data.Dataset):
             parallax = np.nan_to_num(table["parallax"].data)
         else:
             parallax = np.zeros(n)
-            if self.verbose:
-                print(f"[Missing Column] 'parallax' not found.")
+            self._vprint(f"[Missing Column] 'parallax' not found.")
 
         if "e_plx" in table.colnames:
             parallax_error = np.nan_to_num(table["e_plx"].data)
@@ -179,8 +184,7 @@ class Dataset(torch.utils.data.Dataset):
             parallax_error = np.nan_to_num(table["parallax_error"].data)
         else:
             parallax_error = np.zeros(n)
-            if self.verbose:
-                print(f"[Missing Column] 'parallax_error' not found.")
+            self._vprint(f"[Missing Column] 'parallax_error' not found.")
 
         return parallax, parallax_error
 
@@ -202,8 +206,8 @@ class Dataset(torch.utils.data.Dataset):
         for i, meta_col in enumerate(self.colflux):
             if meta_col in table.colnames:
                 meta[:, i, 0] = table[meta_col].data
-            elif self.verbose:
-                print(f"[Missing Column] '{meta_col}' not found.")
+            else:
+                self._vprint(f"[Missing Column] '{meta_col}' not found.")
         
         return meta
 
@@ -245,8 +249,7 @@ class Dataset(torch.utils.data.Dataset):
         data = Table.read(path)
 
         if self.download_flux:
-            if self.verbose:
-                print("Downloading SED metadata from vizier. Overwriting table values.")
+            self._vprint("Downloading SED metadata from vizier. Overwriting table values.")
             data = self.download_fill_metadata_flux(data)
             self.meta_type = MetaType.FLUX_JY
 
@@ -434,13 +437,11 @@ class Dataset(torch.utils.data.Dataset):
             target_enc = urllib.parse.quote(target)
             url = f"https://vizier.cds.unistra.fr/viz-bin/sed?-c={target_enc}&-c.rs={radius}&-out.form=VOTable"
             try:
-                if self.verbose:
-                    print(f"Downloading {url}", end=" ")
+                self._vprint(f"Downloading {url}", end=" ")
                 resp = requests.get(url, timeout=60)
                 resp.raise_for_status()  # raise HTTPError if bad response
                 t = Table.read(BytesIO(resp.content), format="votable")
-                if self.verbose:
-                    print("[Done]")
+                self._vprint("[Done]")
                 return t
             except Exception as e:
                 return e
@@ -466,8 +467,7 @@ class Dataset(torch.utils.data.Dataset):
                 result = future.result()
 
                 if isinstance(result, Exception):
-                    if self.verbose:
-                        print(f"SED query failed for row {idx}: {result}")
+                    self._vprint(f"SED query failed for row {idx}: {result}")
                     continue
                 
                 sed_table = result
@@ -495,6 +495,5 @@ class Dataset(torch.utils.data.Dataset):
                             flux_value = sed_table["sed_flux"][chosen_idx]
                             data[filter_name][idx] = flux_value
                     except Exception as e:
-                        if self.verbose:
-                            print(f"Could not update {filter_name} for row {idx}: {e}", flush=True)
+                        self._vprint(f"Could not update {filter_name} for row {idx}: {e}", flush=True)
         return data

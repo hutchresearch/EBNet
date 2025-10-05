@@ -24,6 +24,8 @@ SOFTWARE.
 """
 
 import argparse
+import sys
+
 from astropy.table import Table
 from ebnet.pipeline import predict
 
@@ -117,7 +119,7 @@ def main() -> None:
         if args.output.lower().endswith(".fits"):
             table.write(args.output, overwrite=True)
             if args.verbose:
-                print(f"Saved results to {args.output}")
+                print(f"Saved results to {args.output}", file=sys.stderr, )
         else:
             raise ValueError("Output path must end with .fits")
     else:
