@@ -148,7 +148,7 @@ def compute_orbital_angles(
 def predict(
     data: Union[str, Table],
     model_type: str = "mixed",
-    meta_type: bool = "magnitude",
+    meta_type: str = "magnitude",
     download_flux: bool = False,
     num_workers: int = 1,
     verbose: bool = False,
@@ -221,7 +221,7 @@ def predict(
         model1_path = os.path.join(entry_point_path, "model_files/tf_model.pth")
         model1 = LoadedModelWrapper(model_path=model1_path)
 
-        pred, std = Runner(
+        paths, pred, std = Runner(
             loader=data_loader,
             model=model1,
             verbose=verbose,
@@ -253,7 +253,7 @@ def predict(
         model_state_dict = franken_load(model2_path, chunks=2)
         model2.load_state_dict(model_state_dict, strict=False)
 
-        pred, std = Runner(
+        paths, pred, std = Runner(
             loader=data_loader,
             model=model2,
             verbose=verbose,
@@ -290,13 +290,13 @@ def predict(
             strict=False,
         )
 
-        model1_pred, model1_std = Runner(
+        paths, model1_pred, model1_std = Runner(
             loader=data_loader,
             model=model1,
             verbose=verbose,
         ).run(f"{ModelType.MODEL1.value} Pass")
 
-        model2_pred, model2_std = Runner(
+        _, model2_pred, model2_std = Runner(
             loader=data_loader,
             model=model2,
             verbose=verbose,
@@ -330,6 +330,8 @@ def predict(
 
     # Build output table
     result_table = Table()
+    result_table["source_file"] = paths
+
     for i, target in enumerate(targets):
         result_table[f"{target}_pred"] = pred[:, i].numpy()
         result_table[f"{target}_std"] = std[:, i].numpy()

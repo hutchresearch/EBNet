@@ -268,7 +268,7 @@ class Dataset(torch.utils.data.Dataset):
 
         return flux_formatted, rv_formatted, meta_formatted, period_formatted, parallax_formatted, parallax_error_formatted
 
-    def __getitem__(self, i: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, i: int) -> Tuple[str, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Retrieves and formats the i-th sample from the dataset.
 
@@ -288,7 +288,7 @@ class Dataset(torch.utils.data.Dataset):
 
         period_parallax_batch = torch.hstack((period_batch[:, None], parallax_batch[:, None], parallax_error_batch[:, None]))
 
-        return flux_batch, rv_batch, meta_batch, period_parallax_batch
+        return flux_path, flux_batch, rv_batch, meta_batch, period_parallax_batch
 
     def __len__(self) -> int:
         """

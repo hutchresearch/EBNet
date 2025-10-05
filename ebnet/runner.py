@@ -22,8 +22,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-from typing import Tuple
+import os
+from typing import Tuple, List
 
 import torch
 from tqdm import tqdm
@@ -65,7 +65,7 @@ class Runner:
         self.device = device
         self.verbose = verbose
 
-    def run(self, desc: str) -> Tuple[torch.Tensor, torch.Tensor]:
+    def run(self, desc: str) -> Tuple[List[str], torch.Tensor, torch.Tensor]:
         """
         Runs inference on the entire dataset.
 
@@ -80,19 +80,21 @@ class Runner:
                   log-variance outputs of the model.
         """
         self.model.train(False)
+        paths = []
         batch_predictions = []
 
         loader = tqdm(self.loader, desc=desc) if self.verbose else self.loader
 
         for batch in loader:
-            prediction = self._run_batch(batch)
+            path, prediction = self._run_batch(batch)
+            paths.extend([os.path.basename(path)] * prediction.shape[0])
             batch_predictions.append(prediction.detach().cpu())
 
         pred, pred_log_var = torch.chunk(torch.vstack(batch_predictions).detach(), chunks=2, dim=1)
         pred_std = torch.sqrt(torch.exp(pred_log_var))
-        return pred, pred_std
+        return paths, pred, pred_std
 
-    def _run_batch(self, batch: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+    def _run_batch(self, batch: Tuple[str, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]) -> Tuple[str, torch.Tensor]:
         """
         Runs inference on a single batch of data.
 
@@ -103,6 +105,7 @@ class Runner:
         Returns:
             torch.Tensor, Model predictions for the batch.
         """
-        flux, rv, meta, period = to_device(*batch, device=self.device)
+        path, flux, rv, meta, period = batch
+        flux, rv, meta, period = to_device(flux, rv, meta, period, device=self.device)
         prediction = self.model(flux, rv, meta, period)
-        return prediction
+        return path, prediction

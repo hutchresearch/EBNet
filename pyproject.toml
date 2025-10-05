@@ -33,3 +33,6 @@ ebnet = [
   "model_files/*/*",
   "model_files/*/*/*"
 ]
+
+[tool.mypy]
+disable_error_code = ["import-untyped"]
