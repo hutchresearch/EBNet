@@ -151,6 +151,7 @@ def predict(
     meta_type: str = "magnitude",
     download_flux: bool = False,
     num_workers: int = 1,
+    device: str = "cpu",
     verbose: bool = False,
     seed: int = 0,
 ) -> Table:
@@ -176,6 +177,8 @@ def predict(
     """
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+    system_device = torch.device(device)
 
     entry_point_path = os.path.split(os.path.abspath(__file__))[0]
     config = open_yaml(os.path.join(entry_point_path, "config.yaml"))
@@ -224,8 +227,9 @@ def predict(
         paths, pred, std = Runner(
             loader=data_loader,
             model=model1,
+            device=system_device,
             verbose=verbose,
-        ).run(f"Evaluating {ModelType.MODEL1.value}")
+        ).run(f"Evaluating {ModelType.MODEL1.value.upper()}")
 
     # MODEL2 only
     elif model_type == ModelType.MODEL2:
@@ -256,8 +260,9 @@ def predict(
         paths, pred, std = Runner(
             loader=data_loader,
             model=model2,
+            device=system_device,
             verbose=verbose,
-        ).run(f"Evaluating {ModelType.MODEL2.value}")
+        ).run(f"Evaluating {ModelType.MODEL2.value.upper()}")
 
     # MIXED mode
     elif model_type == ModelType.MIXED:
@@ -293,14 +298,16 @@ def predict(
         paths, model1_pred, model1_std = Runner(
             loader=data_loader,
             model=model1,
+            device=system_device,
             verbose=verbose,
-        ).run(f"{ModelType.MODEL1.value} Pass")
+        ).run(f"{ModelType.MODEL1.value.upper()} Pass")
 
         _, model2_pred, model2_std = Runner(
             loader=data_loader,
             model=model2,
+            device=system_device,
             verbose=verbose,
-        ).run(f"{ModelType.MODEL2.value} Pass")
+        ).run(f"{ModelType.MODEL2.value.upper()} Pass")
 
         combined_pred: list[torch.Tensor] = []
         combined_std: list[torch.Tensor] = []
