@@ -1,4 +1,5 @@
 # EBNet
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 *Credit: Logan Sizemore, Marina Kounkel*
 
 **EBNet** is a pipeline for predicting stellar parameters for eclipsing binaries using light curves.
