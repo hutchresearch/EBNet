@@ -159,21 +159,41 @@ def predict(
     Runs the EBNet inference pipeline and returns predictions as an Astropy Table.
 
     Args:
-        data: str or Table, Path to a FITS file or directory of FITS files, or an in-memory Table.
-        model_type: str, Backend selection. One of {"tf_model", "pt_model", "mixed"}.
-        verbose: bool, Whether to print progress and file status messages.
-        seed: int, Random seed applied to NumPy and PyTorch.
+        data: str or Table
+            Path to a FITS file, directory of FITS files, or an in-memory Astropy Table.
+            If a Table is provided, a temporary FITS file is created for processing.
+        model_type: str
+            Model backend to use. One of {"tf_model", "pt_model", "mixed"}.
+            - "tf_model": Use the TensorFlow EBNet model.
+            - "pt_model": Use the PyTorch EBNet+ model.
+            - "mixed": Use both backends, routing targets to their configured model.
+        meta_type: str
+            Input metadata representation. One of {"magnitude", "flux"}.
+            Controls whether magnitudes are converted to log10(lambda * F_lambda) internally.
+        download_flux: bool
+            If True, fetches SED flux metadata from Vizier to overwrite table values.
+        num_workers: int
+            Number of concurrent workers used when downloading metadata fluxes.
+            Higher values increase download speed but may hit Vizier rate limits.
+        device: str
+            Device on which to perform inference ("cpu", "cuda", or "cuda:<index>").
+        verbose: bool
+            Enables progress bars and detailed runtime output.
+        seed: int
+            Random seed applied to NumPy and PyTorch for deterministic inference.
 
     Returns:
-        Table, Output table with prediction means and one-sigma uncertainties per target,
-        plus derived orbital angle columns.
+        Table
+            Astropy Table containing:
+            - "source_file": Base filename for each evaluated object.
+            - "<target>_pred": Predicted mean value for each target parameter.
+            - "<target>_std": One-sigma uncertainty for each predicted parameter.
+            - "per0_pred", "per0_std", "phase0_pred", "phase0_std": Derived orbital angle quantities.
 
     Notes:
-        If an Astropy Table is provided, a temporary FITS is written for dataset loading.
-        Configuration is read from "config.yaml" colocated with this module.
-        In mixed mode, each target is routed to the backend specified by "target_to_model_type".
-        Output columns include "<target>_pred" and "<target>_std" for each configured target,
-        and the derived columns "per0_pred", "per0_std", "phase0_pred", "phase0_std".
+        Configuration is loaded from "config.yaml" located in the same directory as this module.
+        In "mixed" mode, targets are assigned to backends using the "target_to_model_type" mapping.
+        All predictions are automatically denormalized before being written to the output table.
     """
     np.random.seed(seed)
     torch.manual_seed(seed)

@@ -57,15 +57,27 @@ class Dataset(torch.utils.data.Dataset):
         verbose: bool = False,
     ) -> None:
         """
-        Initializes the Dataset with paths to FITS files, flux column names,
-        and metadata column names.
+        Initializes the Dataset with FITS file paths, flux column definitions, and metadata configuration.
 
         Args:
-            data_dir_path: str or list of str, Path to a FITS file, a directory
-                containing FITS files, or a list of such paths.
-            lcflux: list of str, Names of light-curve flux columns.
-            colflux: list of str, Names of metadata flux columns.
-            verbose: bool, Whether to print warnings when columns are missing.
+            data_dir_path: str or list of str
+                Path to a FITS file, a directory containing FITS files, or a list of such paths.
+            lcflux: list of str
+                Names of light-curve flux columns.
+            colflux: list of str
+                Names of metadata flux columns (e.g., photometric bands).
+            colwa: list of float
+                Effective wavelengths (in Angstroms) for each metadata band.
+            zero_points: list of float
+                Photometric zero points corresponding to each metadata band.
+            meta_type: MetaType
+                Representation type of metadata ("magnitude", "flux", or "flux_jy").
+            download_flux: bool
+                If True, downloads SED flux data from Vizier and fills metadata columns.
+            num_workers: int
+                Number of threads for parallel SED downloads. Default is 1.
+            verbose: bool
+                If True, prints progress and warning messages.
         """
         super(Dataset, self).__init__()
 
@@ -276,8 +288,13 @@ class Dataset(torch.utils.data.Dataset):
             i: int, Index of the sample.
 
         Returns:
-            tuple of torch.Tensor, Contains flux, RV, metadata, and a stacked
-            tensor of period, parallax, and parallax error.
+            tuple
+                (flux_path, flux, rv, meta, period_parallax):
+                  - flux_path (str): Full path to the source FITS file.
+                  - flux (torch.Tensor): Light-curve flux tensor of shape (num_flux, length).
+                  - rv (torch.Tensor): Radial velocity tensor of shape (2, length).
+                  - meta (torch.Tensor): Metadata tensor of shape (num_meta,).
+                  - period_parallax (torch.Tensor): Combined tensor of period, parallax, and parallax error.
         """
         flux_path = self.flux_paths[i]
         flux_batch, rv_batch, meta_batch, period_batch, parallax_batch, parallax_error_batch = self._load_from_fits(flux_path)
@@ -393,16 +410,25 @@ class Dataset(torch.utils.data.Dataset):
 
     def download_fill_metadata_flux(self, data: Table) -> Table:
         """
-        Download flux metadata for each target in the input table and
-        add the requested flux columns (self.colflux) to the table.
-        This will overwrite any flux values that currently exist in the table. 
+        Downloads flux metadata for each target in the input table and fills the specified
+        flux columns (`self.colflux`) with values from Vizier SED queries.
+
+        Existing flux values in these columns are overwritten. The function runs queries
+        in parallel using a thread pool.
 
         Args:
-            data: Table, Input table containing at least 'RAJ2000' and 'DEJ2000'.
+            data: Table
+                Input table containing at least 'RAJ2000' and 'DEJ2000' columns.
 
         Returns:
-            Table, Input table with additional columns for flux metadata.
-        """    
+            Table
+                Updated table with flux metadata columns populated.
+        Notes:
+            - The number of threads is controlled by `self.num_workers`.
+            - Queries use `requests` to fetch VOTable data directly from Vizier.
+            - If multiple fluxes are available for a given filter, the one with the smallest
+              valid flux error is used when available.
+        """
         def fetch_sed(ra, dec, radius="1"):
             target = f"{ra} {dec}"
             target_enc = urllib.parse.quote(target)

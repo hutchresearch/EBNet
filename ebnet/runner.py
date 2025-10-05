@@ -59,7 +59,20 @@ class Runner:
         device: torch.device = torch.device("cpu"),
         verbose: bool = False,
     ) -> None:
+        """
+        Initializes the Runner for model inference.
 
+        Args:
+            loader: torch.utils.data.DataLoader
+                DataLoader that yields batches containing paths, flux, radial velocity,
+                metadata, and period tensors.
+            model: torch.nn.Module
+                Trained model used for prediction.
+            device: torch.device
+                Device on which to run inference (e.g., torch.device("cpu") or torch.device("cuda")).
+            verbose: bool
+                If True, displays a progress bar and additional runtime information.
+        """
         self.loader = loader
         self.model = model.to(device)
         self.device = device
@@ -70,14 +83,16 @@ class Runner:
         Runs inference on the entire dataset.
 
         Args:
-            desc: str, Description string used for the progress bar
-                if verbose output is enabled.
+            desc: str
+                Description string used for the progress bar if verbose output is enabled.
 
         Returns:
-            tuple of torch.Tensor, Contains two tensors:
-                - Predictions for each sample in the dataset.
-                - Estimated one-sigma uncertainties derived from the
-                  log-variance outputs of the model.
+            tuple
+                (paths, predictions, prediction_std):
+                  - paths (List[str]): Base filenames corresponding to each prediction.
+                  - predictions (torch.Tensor): Model mean predictions for all samples.
+                  - prediction_std (torch.Tensor): One-sigma uncertainties derived from
+                    the log-variance outputs of the model.
         """
         self.model.train(False)
         paths = []
@@ -99,11 +114,19 @@ class Runner:
         Runs inference on a single batch of data.
 
         Args:
-            batch: tuple of torch.Tensor, A batch containing model inputs
-                (flux, radial velocity, metadata, and period).
+            batch: tuple
+                Contains:
+                  - path (str): The source file path for the sample.
+                  - flux (torch.Tensor): Light-curve flux tensor.
+                  - rv (torch.Tensor): Radial velocity tensor.
+                  - meta (torch.Tensor): Metadata tensor.
+                  - period (torch.Tensor): Orbital period tensor.
 
         Returns:
-            torch.Tensor, Model predictions for the batch.
+            tuple
+                (path, prediction):
+                  - path (str): Original input file name.
+                  - prediction (torch.Tensor): Model output tensor for the batch.
         """
         path, flux, rv, meta, period = batch
         flux, rv, meta, period = to_device(flux, rv, meta, period, device=self.device)

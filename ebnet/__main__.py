@@ -87,7 +87,6 @@ def main() -> None:
         help="Number of workers used to download metadata flux. Default 1. "
             "This will increase the speed of download, but you may be rate limited."
     )
-
     parser.add_argument(
         "--device",
         type=str,
