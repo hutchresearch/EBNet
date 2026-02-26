@@ -156,14 +156,15 @@ The function returns an Astropy `Table` with:
 
 ## Cite
 ```bibtex
-@software{logan_sizemore_2025_14728812,
-  author       = {Logan Sizemore},
-  title        = {hutchresearch/BOSSNet: BOSS Net v2.0.0},
-  month        = jan,
-  year         = 2025,
+@software{logan_sizemore_2026_18790155,
+  author       = {Logan Sizemore and
+                  Marina Kounkel},
+  title        = {hutchresearch/EBNet: v1.0},
+  month        = feb,
+  year         = 2026,
   publisher    = {Zenodo},
-  version      = {2.0.0},
-  doi          = {10.5281/zenodo.14728812},
-  url          = {https://doi.org/10.5281/zenodo.14728812},
+  version      = {v1.0},
+  doi          = {10.5281/zenodo.18790155},
+  url          = {https://doi.org/10.5281/zenodo.18790155},
 }
 ```
