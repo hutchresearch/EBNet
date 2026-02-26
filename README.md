@@ -57,7 +57,7 @@ It may include any number of the following **light curve columns**:
 * Tycho_B, Tycho_V
 * Hipparcos_Hp
 
-It may also include any number of the following **metadata columns**:
+It may also include any number of the following **metadata columns**, either in magnitudes (in which case, set meta_type="magnitude") or converted to log10(λF_λ) format (in which case, set meta_type="flux" ):
 * GALEX.FUV, GALEX.NUV
 * Johnson.U, Johnson.B, Johnson.V, Johnson.R, Johnson.I
 * Cousins.U, Cousins.B, Cousins.V, Cousins.R, Cousins.I
@@ -114,7 +114,7 @@ data = Table.read(path)
 result = ebnet.predict(
     data,
     model_type="mixed",
-    meta_type="magnitude",
+    meta_type="flux",
     device="cuda",
     download_flux=False,
     num_workers=1,
@@ -138,7 +138,7 @@ The `predict` function accepts three types of inputs:
   * `"mixed"` – Uses both models, selecting the backend per target
 * `meta_type`: Metadata representation type. Options:
   * `"magnitude"` — raw magnitudes (catalog-style)
-  * `"flux"` — log10(lambda * F_lambda) representation
+  * `"flux"` — log10(λ * F_λ) representation
   * Automatically set to `"flux_jy"` when `download_flux=True`
 * `device`: PyTorch device for computation (e.g., `"cpu"`, `"cuda"`, `"cuda:0"`, `"mps"`).
 * `download_flux`: If `True`, queries VizieR for SED fluxes and replaces existing metadata flux columns.
@@ -151,4 +151,4 @@ The function returns an Astropy `Table` with:
 * `<target>_pred`: Predicted value for each target parameter
 * `<target>_std`: One-sigma uncertainty for each prediction
 * `per0_pred` / `per0_std`: Derived argument of periastron in degrees and its uncertainty
-* `phase0_pred` / `phase0_std`: Derived orbital phase zero in cycles and its uncertainty
+* `phase0_pred` / `phase0_std`: Derived orbital phase of periastron and its uncertainty
