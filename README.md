@@ -1,4 +1,5 @@
 # EBNet
+[![DOI](https://zenodo.org/badge/1024347138.svg)](https://doi.org/10.5281/zenodo.18790154)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 *Credit: Logan Sizemore, Marina Kounkel*
@@ -152,3 +153,17 @@ The function returns an Astropy `Table` with:
 * `<target>_std`: One-sigma uncertainty for each prediction
 * `per0_pred` / `per0_std`: Derived argument of periastron in degrees and its uncertainty
 * `phase0_pred` / `phase0_std`: Derived orbital phase of periastron and its uncertainty
+
+## Cite
+```bibtex
+@software{logan_sizemore_2025_14728812,
+  author       = {Logan Sizemore},
+  title        = {hutchresearch/BOSSNet: BOSS Net v2.0.0},
+  month        = jan,
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {2.0.0},
+  doi          = {10.5281/zenodo.14728812},
+  url          = {https://doi.org/10.5281/zenodo.14728812},
+}
+```
