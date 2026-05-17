@@ -6,6 +6,8 @@
 
 **EBNet** is a pipeline for predicting stellar parameters for eclipsing binaries using light curves.
 
+[EBNet Paper](https://iopscience.iop.org/article/10.3847/1538-3881/ae5b79/meta)
+
 ## Installation
 Clone the repository and run:
 ```bash
@@ -155,6 +157,7 @@ The function returns an Astropy `Table` with:
 * `phase0_pred` / `phase0_std`: Derived orbital phase of periastron and its uncertainty
 
 ## Cite
+Software:
 ```bibtex
 @software{logan_sizemore_2026_18790155,
   author       = {Logan Sizemore and
@@ -166,5 +169,18 @@ The function returns an Astropy `Table` with:
   version      = {v1.0},
   doi          = {10.5281/zenodo.18790155},
   url          = {https://doi.org/10.5281/zenodo.18790155},
+}
+```
+Paper:
+```bibtex
+@article{kounkel2026probabilistic,
+  title={Probabilistic neural network approach to determining parameters of eclipsing binaries},
+  author={Kounkel, Marina and Sizemore, Logan and Shen, Hidemi Mitani and Chandler, Nicholas and Reneau, Noah and Pourlotfali, Ian and Payton, Ronald L and Hutchinson, Brian and Medan, Ilija and Stassun, Keivan},
+  journal={The Astronomical Journal},
+  volume={171},
+  number={5},
+  pages={320},
+  year={2026},
+  publisher={The American Astronomical Society}
 }
 ```
